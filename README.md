@@ -22,5 +22,5 @@
 - Разработать финансовую модель (предоплата, тарификация, покрытие простоев).
 - Минимизировать холостые пробеги («воздух»).
 
-<img width="800" height="600" alt="bus" src="https://github.com/user-attachments/assets/5b795ee2-6fdd-4f8f-a065-a7e19c15b856" />
+<img width="600" height="800" alt="bus" src="https://github.com/user-attachments/assets/5b795ee2-6fdd-4f8f-a065-a7e19c15b856" />
 
