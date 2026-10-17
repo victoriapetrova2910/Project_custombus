@@ -1,361 +1,304 @@
-# Контракты проекта «По пути»
-
-Контракт — это описание того, как части системы общаются между собой. Есть два вида:
-
-1. **Документация API** — что может вызвать приложение или другой сервис по HTTP.
-2. **Документация модулей** — какие функции есть в коде, что они принимают, возвращают и когда выбрасывают ошибки.
-
-Формат взят из раздела «Контракты» (курс ШАД, страница buildin.ai). Машинный контракт API лежит в `openapi.yaml`, этот файл — читаемая версия для защиты.
-
----
-
-# 1. Документация API
-
-Все адреса начинаются с `/api/v1`. Ошибки приходят в поле `detail` на русском языке.
-
-## 1.1. Создать рейс
-
-**POST /api/v1/trips**
-
-Создаёт рейс. Сразу после создания `available_seats = total_seats`.
-
-Тело запроса:
-
-| Параметр | Тип | Обязательный | Описание |
-|---|---|---|---|
-| departure_point | string (до 255) | да | Точка отправления |
-| destination_point | string (до 255) | да | Точка назначения |
-| departure_time | datetime (ISO 8601) | да | Время отправления |
-| total_seats | integer (больше 0) | да | Число мест в автобусе |
-
-Пример запроса:
-
-```json
-{
-  "departure_point": "Солнцево",
-  "destination_point": "м. Теплый Стан",
-  "departure_time": "2026-10-20T08:00:00+03:00",
-  "total_seats": 20
-}
-```
-
-Response 201:
-
-```json
-{
-  "id": 5,
-  "departure_point": "Солнцево",
-  "destination_point": "м. Теплый Стан",
-  "departure_time": "2026-10-20T08:00:00+03:00",
-  "total_seats": 20,
-  "available_seats": 20
-}
-```
-
-Errors:
-
-| Код | Описание |
-|---|---|
-| 422 | Неверные данные (пустая точка, число мест не больше 0) |
-
----
-
-## 1.2. Получить рейс
-
-**GET /api/v1/trips/{trip_id}**
-
-| Параметр | Тип | Описание |
-|---|---|---|
-| trip_id | integer | ID рейса (в пути) |
-
-Response 200: объект рейса, как в 1.1.
-
-Errors:
-
-| Код | Описание |
-|---|---|
-| 404 | Рейс не найден |
-
----
-
-## 1.3. Создать предзаказ
-
-**POST /api/v1/preorders**
-
-Занимает места в рейсе. Проверка и списание мест выполняются одним атомарным запросом,
-поэтому два пассажира не могут занять последнее место одновременно.
-
-Тело запроса:
-
-| Параметр | Тип | Обязательный | Описание |
-|---|---|---|---|
-| user_id | integer (больше 0) | да | ID пассажира |
-| trip_id | integer (больше 0) | да | ID рейса |
-| seats_count | integer (не меньше 1) | нет, по умолчанию 1 | Число мест |
-
-Пример запроса:
-
-```json
-{
-  "user_id": 101,
-  "trip_id": 5,
-  "seats_count": 1
-}
-```
-
-Response 201:
-
-```json
-{
-  "id": 17,
-  "user_id": 101,
-  "trip_id": 5,
-  "departure_point": "Солнцево",
-  "destination_point": "м. Теплый Стан",
-  "departure_time": "2026-10-20T08:00:00+03:00",
-  "seats_count": 1,
-  "status": "pending",
-  "created_at": "2026-10-17T12:40:00+03:00"
-}
-```
-
-Errors:
-
-| Код | Описание |
-|---|---|
-| 404 | Рейс не найден |
-| 409 | Недостаточно свободных мест |
-
----
-
-## 1.4. Получить предзаказ
-
-**GET /api/v1/preorders/{preorder_id}**
-
-Response 200: объект предзаказа, как в 1.3.
-
-Errors:
-
-| Код | Описание |
-|---|---|
-| 404 | Бронирование не найдено |
-
----
-
-## 1.5. Оплатить предзаказ (быстрый путь)
-
-**POST /api/v1/preorders/{preorder_id}/pay**
-
-Создаёт платёж сразу в статусе `paid` и переводит предзаказ в `confirmed`.
-
-> Важно: сумма сейчас захардкожена (500). По интервью цена 75–200 руб. Это надо исправить до защиты.
-
-Response 201:
-
-```json
-{
-  "id": 3,
-  "preorder_id": 17,
-  "amount": 500.00,
-  "status": "paid"
-}
-```
-
-Errors:
-
-| Код | Описание |
-|---|---|
-| 400 | Бронирование отменено или уже оплачено |
-| 404 | Бронирование не найдено |
-
----
-
-## 1.6. Отменить предзаказ
-
-**POST /api/v1/preorders/{preorder_id}/cancel**
-
-Возвращает места в рейс и переводит предзаказ в `cancelled`.
-
-> Важно: сумма возврата здесь пока не считается. Расчёт есть в `refund_amount` (см. раздел 2.4), его нужно подключить.
-
-Response 200: объект предзаказа со статусом `cancelled`.
-
-Errors:
-
-| Код | Описание |
-|---|---|
-| 400 | Предзаказ уже отменён |
-| 404 | Бронирование или рейс не найдены |
-| 409 | Нельзя вернуть места: превышено общее число мест |
-
----
-
-## 1.7. Мои предзаказы
-
-**GET /api/v1/my/preorders?user_id={user_id}**
-
-| Параметр | Тип | Обязательный | Описание |
-|---|---|---|---|
-| user_id | integer | да | ID пассажира |
-
-Response 200: массив предзаказов, новые сверху.
-
----
-
-## 1.8. Платежи (пошаговый путь)
-
-**POST /api/v1/payments** — создать платёж в статусе `pending`.
-
-| Параметр | Тип | Обязательный | Описание |
-|---|---|---|---|
-| preorder_id | integer | да | ID предзаказа |
-| amount | number (больше 0) | да | Сумма |
-
-Errors: 400 (отменено или уже оплачено), 404, 409 (уже есть платёж в ожидании).
-
-**GET /api/v1/payments/{payment_id}** — получить платёж. Errors: 404.
-
-**POST /api/v1/payments/{payment_id}/confirm** — подтвердить: платёж становится `paid`, предзаказ `confirmed`.
-Errors: 400 (платёж уже подтверждён или статус не `pending`), 404.
-
-**POST /api/v1/payments/{payment_id}/fail** — отметить как `failed`.
-Errors: 400 (уже оплачен или уже `failed`), 404.
-
-> Два пути оплаты (1.5 и 1.8) дают разный результат. Нужно оставить один.
-
----
-
-## 1.9. Запланированные адреса (ещё не реализованы)
-
-| Метод и путь | Назначение |
-|---|---|
-| GET /api/v1/stops | Список остановок (задание 1) |
-| POST /api/v1/preorders/search | Поиск рейсов по остановкам и времени |
-
----
-
-# 2. Документация модулей
-
-Модули лежат в папке `algorithm/`.
-
-## 2.1. `build_trips_greedy` (algorithm/grouping.py)
-
-Группирует предзаказы в рейсы жадным методом.
-
-**Сигнатура**
-
-```python
-def build_trips_greedy(preorders: list[Preorder], p: Params, capacity: int) -> list[Trip]
-```
-
-**Параметры**
-
-| Параметр | Тип | Обязательный | Описание |
-|---|---|---|---|
-| preorders | list[Preorder] | да | Предзаказы. Поля: id, from_stop, to_stop, earliest, seats |
-| p | Params | да | Пороги: time_window, stop_radius_m, max_bearing_diff_deg, max_detour_ratio |
-| capacity | int | да | Вместимость автобуса |
-
-**Возвращает**
-
-| Тип | Описание |
-|---|---|
-| list[Trip] | Рейсы. Поля: id (строка вида `trip_1`), orders, seats_used, start_time |
-
-**Исключения:** явных исключений нет. Пустой список предзаказов даёт пустой список рейсов.
-
-**Гарантии:** одинаковый вход даёт одинаковый результат. Место в рейс добавляется только если его хватает до `capacity`.
-
-**Ограничение:** если один предзаказ сам по себе больше `capacity` (например, 25 мест в автобусе на 20), он попадёт в отдельный рейс и будет превышать вместимость. Такие заказы нужно отсекать до вызова функции (на уровне API).
-
----
-
-## 2.2. `is_compatible` (algorithm/grouping.py)
-
-Проверяет, можно ли добавить заказ в рейс.
-
-**Сигнатура**
-
-```python
-def is_compatible(trip: Trip, order: Preorder, p: Params, capacity: int) -> bool
-```
-
-**Возвращает:** `True`, если выполнены все пять условий: вместимость, время посадки,
-близость остановок, направление, удлинение поездки.
-
----
-
-## 2.3. `assign_vehicles` (algorithm/scheduling.py)
-
-Назначает автобус каждому рейсу методом best fit.
-
-**Сигнатура**
-
-```python
-def assign_vehicles(
-    trips: list[Trip],
-    vehicles: list[Vehicle],
-    trip_duration: timedelta = timedelta(minutes=40),
-    buffer: timedelta = timedelta(minutes=15),
-) -> dict[str, str | None]
-```
-
-**Параметры**
-
-| Параметр | Тип | Обязательный | Описание |
-|---|---|---|---|
-| trips | list[Trip] | да | Рейсы из build_trips_greedy |
-| vehicles | list[Vehicle] | да | Автобусы: id, capacity, busy |
-| trip_duration | timedelta | нет, 40 мин | Длительность рейса |
-| buffer | timedelta | нет, 15 мин | Время между рейсами одного автобуса |
-
-**Возвращает:** словарь `{trip_id: vehicle_id}`. Значение `None` — подходящего автобуса нет,
-решает диспетчер.
-
-**Гарантии:** один автобус не назначается на пересекающиеся рейсы. Занятость автобусов
-меняется в объекте `vehicles` (поле `busy`).
-
----
-
-## 2.4. `refund_amount` и `refund_ratio` (algorithm/refund.py)
-
-**Сигнатуры**
-
-```python
-def refund_ratio(paid_at: datetime, departure_at: datetime, cancelled_at: datetime,
-                 policy: RefundPolicy = RefundPolicy()) -> Decimal
-def refund_amount(price: Decimal, paid_at: datetime, departure_at: datetime,
-                  cancelled_at: datetime, policy: RefundPolicy = RefundPolicy()) -> Decimal
-```
-
-**Параметры**
-
-| Параметр | Тип | Описание |
-|---|---|---|
-| price | Decimal | Стоимость заказа в рублях |
-| paid_at | datetime | Время оплаты |
-| departure_at | datetime | Время отправления рейса |
-| cancelled_at | datetime | Время отмены |
-| policy | RefundPolicy | Пороги. По умолчанию: мгновенная отмена 10 мин, половина возврата за 2 часа, ноль за 30 минут |
-
-**Возвращает**
-
-| Функция | Тип | Описание |
-|---|---|---|
-| refund_ratio | Decimal | Доля возврата: 1.00, 0.50 или 0 |
-| refund_amount | Decimal | Сумма возврата, округлённая до копеек |
-
-**Исключения:** явных исключений нет. После отправления возвращается 0.
-
-**Предположения** (не из интервью, нужно согласовать): мгновенная отмена — до 10 минут;
-отмена между 30 минутами и 2 часами — 50%.
-
----
-
-# 3. Что проверить перед защитой
-
-- [ ] Каждый адрес из раздела 1 есть в `docs/openapi.yaml` и совпадает по полям.
-- [ ] Каждая функция из раздела 2 есть в коде и имеет тест.
-- [ ] Исправлена захардкоженная сумма оплаты (500).
-- [ ] Оставлен один путь оплаты.
-- [ ] Расчёт возврата подключён к отмене.
+openapi: 3.0.3
+info:
+  title: По пути — API предварительного бронирования
+  version: 1.0.0
+  description: |
+    Контракт, написанный по фактическому коду backend (FastAPI) из репозитория
+    victoriapetrova2910/Project_custombus. Всё, что помечено x-status: planned,
+    в коде ещё не реализовано и описано как план.
+servers:
+  - url: http://127.0.0.1:8000
+
+tags:
+  - name: Рейсы
+  - name: Бронирования
+  - name: Мои бронирования
+  - name: Оплата
+
+paths:
+  /api/v1/trips:
+    post:
+      tags: [Рейсы]
+      summary: Создать рейс
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TripCreate' }
+      responses:
+        '201':
+          description: Рейс создан, available_seats = total_seats
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trip' }
+        '422': { description: Ошибка валидации }
+
+  /api/v1/trips/{trip_id}:
+    get:
+      tags: [Рейсы]
+      summary: Получить рейс
+      parameters:
+        - { name: trip_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Рейс
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trip' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/preorders:
+    post:
+      tags: [Бронирования]
+      summary: Создать предзаказ и занять места
+      description: |
+        Места списываются атомарным UPDATE ... WHERE available_seats >= N.
+        Два одновременных запроса на последнее место не могут пройти оба.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PreorderCreate' }
+      responses:
+        '201':
+          description: Предзаказ создан, статус pending
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Preorder' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/preorders/{preorder_id}:
+    get:
+      tags: [Бронирования]
+      summary: Получить предзаказ
+      parameters:
+        - { name: preorder_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Предзаказ
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Preorder' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/preorders/{preorder_id}/pay:
+    post:
+      tags: [Оплата]
+      summary: Оплатить предзаказ (быстрый путь, mock)
+      description: |
+        Создаёт платёж сразу в статусе paid и переводит предзаказ в confirmed.
+        ВНИМАНИЕ: сумма захардкожена (500). В интервью цена 75–200 руб.
+        Это расхождение нужно исправить.
+      parameters:
+        - { name: preorder_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '201':
+          description: Платёж создан и подтверждён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/preorders/{preorder_id}/cancel:
+    post:
+      tags: [Бронирования]
+      summary: Отменить предзаказ и вернуть места
+      description: |
+        Возвращает места в рейс. Сумму возврата сейчас НЕ считает:
+        правила возврата реализованы в algorithm/refund.py и ещё не подключены.
+      parameters:
+        - { name: preorder_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Предзаказ отменён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Preorder' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/my/preorders:
+    get:
+      tags: [Мои бронирования]
+      summary: Список предзаказов пользователя
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Предзаказы, новые сверху
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Preorder' }
+
+  /api/v1/payments:
+    post:
+      tags: [Оплата]
+      summary: Создать платёж в статусе pending (пошаговый путь)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentCreate' }
+      responses:
+        '201':
+          description: Платёж создан
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/payments/{payment_id}:
+    get:
+      tags: [Оплата]
+      summary: Получить платёж
+      parameters:
+        - { name: payment_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Платёж
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/payments/{payment_id}/confirm:
+    post:
+      tags: [Оплата]
+      summary: Подтвердить платёж (pending → paid, предзаказ → confirmed)
+      parameters:
+        - { name: payment_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Платёж подтверждён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/payments/{payment_id}/fail:
+    post:
+      tags: [Оплата]
+      summary: Отметить платёж неуспешным
+      parameters:
+        - { name: payment_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Платёж отмечен как failed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/stops:
+    get:
+      x-status: planned
+      tags: [Рейсы]
+      summary: Список остановок (план, см. задание 1)
+      responses:
+        '200': { description: Остановки }
+
+  /api/v1/preorders/search:
+    post:
+      x-status: planned
+      tags: [Бронирования]
+      summary: Поиск рейсов по остановкам и времени (план)
+      responses:
+        '200': { description: Найденные рейсы }
+
+components:
+  responses:
+    BadRequest:
+      description: Неверное действие для текущего статуса
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Не найдено
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Конфликт (мест нет, превышено число мест, платёж уже существует)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Текст ошибки на русском (так сейчас возвращает FastAPI)
+
+    TripCreate:
+      type: object
+      required: [departure_point, destination_point, departure_time, total_seats]
+      properties:
+        departure_point: { type: string, maxLength: 255 }
+        destination_point: { type: string, maxLength: 255 }
+        departure_time: { type: string, format: date-time }
+        total_seats: { type: integer, minimum: 1 }
+
+    Trip:
+      type: object
+      properties:
+        id: { type: integer }
+        departure_point: { type: string }
+        destination_point: { type: string }
+        departure_time: { type: string, format: date-time }
+        total_seats: { type: integer }
+        available_seats: { type: integer }
+
+    PreorderCreate:
+      type: object
+      required: [user_id, trip_id]
+      properties:
+        user_id: { type: integer, minimum: 1 }
+        trip_id: { type: integer, minimum: 1 }
+        seats_count: { type: integer, minimum: 1, default: 1 }
+
+    Preorder:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        trip_id: { type: integer, nullable: true }
+        departure_point: { type: string }
+        destination_point: { type: string }
+        departure_time: { type: string, format: date-time }
+        seats_count: { type: integer }
+        status:
+          type: string
+          description: "pending, confirmed, cancelled (в коде статусы строками)"
+          enum: [pending, confirmed, cancelled]
+        created_at: { type: string, format: date-time }
+
+    PaymentCreate:
+      type: object
+      required: [preorder_id, amount]
+      properties:
+        preorder_id: { type: integer, minimum: 1 }
+        amount: { type: number, exclusiveMinimum: 0 }
+
+    Payment:
+      type: object
+      properties:
+        id: { type: integer }
+        preorder_id: { type: integer }
+        amount: { type: number }
+        status:
+          type: string
+          enum: [pending, paid, failed]

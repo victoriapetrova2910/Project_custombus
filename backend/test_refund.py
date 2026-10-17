@@ -1,304 +1,92 @@
-openapi: 3.0.3
-info:
-  title: По пути — API предварительного бронирования
-  version: 1.0.0
-  description: |
-    Контракт, написанный по фактическому коду backend (FastAPI) из репозитория
-    victoriapetrova2910/Project_custombus. Всё, что помечено x-status: planned,
-    в коде ещё не реализовано и описано как план.
-servers:
-  - url: http://127.0.0.1:8000
+import unittest
+from datetime import datetime, timedelta
 
-tags:
-  - name: Рейсы
-  - name: Бронирования
-  - name: Мои бронирования
-  - name: Оплата
+from algorithm.grouping import Params, Preorder, Stop, build_trips_greedy
+from algorithm.scheduling import Vehicle, assign_vehicles
 
-paths:
-  /api/v1/trips:
-    post:
-      tags: [Рейсы]
-      summary: Создать рейс
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/TripCreate' }
-      responses:
-        '201':
-          description: Рейс создан, available_seats = total_seats
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Trip' }
-        '422': { description: Ошибка валидации }
+# Координаты условные, рядом с Новой Москвой
+A = Stop("A", 55.5000, 37.4000)
+A2 = Stop("A2", 55.5010, 37.4010)   # ~130 м от A
+B = Stop("B", 55.6000, 37.5000)     # ~11 км от A, в ту же сторону
+B2 = Stop("B2", 55.6005, 37.5005)   # рядом с B
+C = Stop("C", 55.4000, 37.3000)     # в другую сторону от A
 
-  /api/v1/trips/{trip_id}:
-    get:
-      tags: [Рейсы]
-      summary: Получить рейс
-      parameters:
-        - { name: trip_id, in: path, required: true, schema: { type: integer } }
-      responses:
-        '200':
-          description: Рейс
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Trip' }
-        '404': { $ref: '#/components/responses/NotFound' }
+T0 = datetime(2026, 10, 20, 8, 0)
+P = Params()
 
-  /api/v1/preorders:
-    post:
-      tags: [Бронирования]
-      summary: Создать предзаказ и занять места
-      description: |
-        Места списываются атомарным UPDATE ... WHERE available_seats >= N.
-        Два одновременных запроса на последнее место не могут пройти оба.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/PreorderCreate' }
-      responses:
-        '201':
-          description: Предзаказ создан, статус pending
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Preorder' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
 
-  /api/v1/preorders/{preorder_id}:
-    get:
-      tags: [Бронирования]
-      summary: Получить предзаказ
-      parameters:
-        - { name: preorder_id, in: path, required: true, schema: { type: integer } }
-      responses:
-        '200':
-          description: Предзаказ
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Preorder' }
-        '404': { $ref: '#/components/responses/NotFound' }
+def order(oid, frm, to, minutes=0, seats=1):
+    return Preorder(oid, frm, to, T0 + timedelta(minutes=minutes), seats)
 
-  /api/v1/preorders/{preorder_id}/pay:
-    post:
-      tags: [Оплата]
-      summary: Оплатить предзаказ (быстрый путь, mock)
-      description: |
-        Создаёт платёж сразу в статусе paid и переводит предзаказ в confirmed.
-        ВНИМАНИЕ: сумма захардкожена (500). В интервью цена 75–200 руб.
-        Это расхождение нужно исправить.
-      parameters:
-        - { name: preorder_id, in: path, required: true, schema: { type: integer } }
-      responses:
-        '201':
-          description: Платёж создан и подтверждён
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Payment' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
 
-  /api/v1/preorders/{preorder_id}/cancel:
-    post:
-      tags: [Бронирования]
-      summary: Отменить предзаказ и вернуть места
-      description: |
-        Возвращает места в рейс. Сумму возврата сейчас НЕ считает:
-        правила возврата реализованы в algorithm/refund.py и ещё не подключены.
-      parameters:
-        - { name: preorder_id, in: path, required: true, schema: { type: integer } }
-      responses:
-        '200':
-          description: Предзаказ отменён
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Preorder' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+class GroupingTests(unittest.TestCase):
 
-  /api/v1/my/preorders:
-    get:
-      tags: [Мои бронирования]
-      summary: Список предзаказов пользователя
-      parameters:
-        - name: user_id
-          in: query
-          required: true
-          schema: { type: integer }
-      responses:
-        '200':
-          description: Предзаказы, новые сверху
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/Preorder' }
+    def test_compatible_orders_grouped(self):
+        trips = build_trips_greedy(
+            [order("o1", A, B, 0), order("o2", A2, B2, 5)], P, capacity=20
+        )
+        self.assertEqual(len(trips), 1)
+        self.assertEqual(len(trips[0].orders), 2)
 
-  /api/v1/payments:
-    post:
-      tags: [Оплата]
-      summary: Создать платёж в статусе pending (пошаговый путь)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/PaymentCreate' }
-      responses:
-        '201':
-          description: Платёж создан
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Payment' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+    def test_capacity_not_exceeded(self):
+        trips = build_trips_greedy(
+            [order("o1", A, B, 0, seats=3), order("o2", A2, B2, 1, seats=3)],
+            P, capacity=4,
+        )
+        self.assertEqual(len(trips), 2)
+        for t in trips:
+            self.assertLessEqual(t.seats_used, 4)
 
-  /api/v1/payments/{payment_id}:
-    get:
-      tags: [Оплата]
-      summary: Получить платёж
-      parameters:
-        - { name: payment_id, in: path, required: true, schema: { type: integer } }
-      responses:
-        '200':
-          description: Платёж
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Payment' }
-        '404': { $ref: '#/components/responses/NotFound' }
+    def test_time_window_respected(self):
+        trips = build_trips_greedy(
+            [order("o1", A, B, 0), order("o2", A2, B2, 60)], P, capacity=20
+        )
+        self.assertEqual(len(trips), 2)
 
-  /api/v1/payments/{payment_id}/confirm:
-    post:
-      tags: [Оплата]
-      summary: Подтвердить платёж (pending → paid, предзаказ → confirmed)
-      parameters:
-        - { name: payment_id, in: path, required: true, schema: { type: integer } }
-      responses:
-        '200':
-          description: Платёж подтверждён
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Payment' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+    def test_opposite_direction_split(self):
+        # C лежит в другую сторону от A, поэтому заказ C->A не должен ехать с A->B
+        back = Preorder("o2", C, A, T0 + timedelta(minutes=2), 1)
+        trips = build_trips_greedy([order("o1", A, B, 0), back], P, capacity=20)
+        self.assertEqual(len(trips), 2)
 
-  /api/v1/payments/{payment_id}/fail:
-    post:
-      tags: [Оплата]
-      summary: Отметить платёж неуспешным
-      parameters:
-        - { name: payment_id, in: path, required: true, schema: { type: integer } }
-      responses:
-        '200':
-          description: Платёж отмечен как failed
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Payment' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+    def test_far_stops_split(self):
+        trips = build_trips_greedy(
+            [order("o1", A, B, 0), order("o2", A2, C, 1)], P, capacity=20
+        )
+        self.assertEqual(len(trips), 2)
 
-  /api/v1/stops:
-    get:
-      x-status: planned
-      tags: [Рейсы]
-      summary: Список остановок (план, см. задание 1)
-      responses:
-        '200': { description: Остановки }
+    def test_deterministic(self):
+        orders = [order("o1", A, B, 0), order("o2", A2, B2, 5), order("o3", C, A, 3)]
+        r1 = [[o.id for o in t.orders] for t in build_trips_greedy(orders, P, 20)]
+        r2 = [[o.id for o in t.orders] for t in build_trips_greedy(orders, P, 20)]
+        self.assertEqual(r1, r2)
 
-  /api/v1/preorders/search:
-    post:
-      x-status: planned
-      tags: [Бронирования]
-      summary: Поиск рейсов по остановкам и времени (план)
-      responses:
-        '200': { description: Найденные рейсы }
 
-components:
-  responses:
-    BadRequest:
-      description: Неверное действие для текущего статуса
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-    NotFound:
-      description: Не найдено
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-    Conflict:
-      description: Конфликт (мест нет, превышено число мест, платёж уже существует)
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+class SchedulingTests(unittest.TestCase):
 
-  schemas:
-    Error:
-      type: object
-      properties:
-        detail:
-          type: string
-          description: Текст ошибки на русском (так сейчас возвращает FastAPI)
+    def test_best_fit_vehicle(self):
+        trips = build_trips_greedy([order("o1", A, B, 0, seats=3)], P, capacity=20)
+        vehicles = [Vehicle("big", 30), Vehicle("small", 5)]
+        result = assign_vehicles(trips, vehicles)
+        self.assertEqual(result[trips[0].id], "small")
 
-    TripCreate:
-      type: object
-      required: [departure_point, destination_point, departure_time, total_seats]
-      properties:
-        departure_point: { type: string, maxLength: 255 }
-        destination_point: { type: string, maxLength: 255 }
-        departure_time: { type: string, format: date-time }
-        total_seats: { type: integer, minimum: 1 }
+    def test_no_overlap_per_vehicle(self):
+        trips = build_trips_greedy(
+            [order("o1", A, B, 0, seats=2), order("o2", C, A, 0, seats=2)],
+            P, capacity=2,
+        )
+        vehicles = [Vehicle("only", 5)]
+        result = assign_vehicles(trips, vehicles)
+        ids = list(result.values())
+        # один автобус не может обслуживать два рейса в одно и то же время
+        self.assertEqual(ids.count("only"), 1)
+        self.assertIn(None, ids)
 
-    Trip:
-      type: object
-      properties:
-        id: { type: integer }
-        departure_point: { type: string }
-        destination_point: { type: string }
-        departure_time: { type: string, format: date-time }
-        total_seats: { type: integer }
-        available_seats: { type: integer }
+    def test_no_vehicle_marked(self):
+        trips = build_trips_greedy([order("o1", A, B, 0, seats=9)], P, capacity=20)
+        result = assign_vehicles(trips, [Vehicle("small", 5)])
+        self.assertIsNone(result[trips[0].id])
 
-    PreorderCreate:
-      type: object
-      required: [user_id, trip_id]
-      properties:
-        user_id: { type: integer, minimum: 1 }
-        trip_id: { type: integer, minimum: 1 }
-        seats_count: { type: integer, minimum: 1, default: 1 }
 
-    Preorder:
-      type: object
-      properties:
-        id: { type: integer }
-        user_id: { type: integer }
-        trip_id: { type: integer, nullable: true }
-        departure_point: { type: string }
-        destination_point: { type: string }
-        departure_time: { type: string, format: date-time }
-        seats_count: { type: integer }
-        status:
-          type: string
-          description: "pending, confirmed, cancelled (в коде статусы строками)"
-          enum: [pending, confirmed, cancelled]
-        created_at: { type: string, format: date-time }
-
-    PaymentCreate:
-      type: object
-      required: [preorder_id, amount]
-      properties:
-        preorder_id: { type: integer, minimum: 1 }
-        amount: { type: number, exclusiveMinimum: 0 }
-
-    Payment:
-      type: object
-      properties:
-        id: { type: integer }
-        preorder_id: { type: integer }
-        amount: { type: number }
-        status:
-          type: string
-          enum: [pending, paid, failed]
+if __name__ == "__main__":
+    unittest.main()

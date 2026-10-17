@@ -1,55 +1,59 @@
 """
-Распределение автобусов по рейсам (ФТ7). Метод: best fit.
+Правила возврата при отмене предзаказа.
 
-Для каждого рейса берём самый маленький свободный автобус,
-в который помещаются все пассажиры. Один автобус не может
-быть назначен на два рейса, если между ними нет времени на дорогу.
+Источник: docs/research/interview_results.md, раздел «Финансовая модель и политика отмен»:
+  - мгновенная отмена                → 100% возврат
+  - отмена более чем за 2 часа        → 50%
+  - отмена менее чем за 30 минут      → 0% (место возвращается в продажу)
+
+Что в интервью НЕ сказано (и поэтому стоит в параметрах как предположение):
+  - что считать «мгновенной» отменой (сейчас: до 10 минут после оплаты);
+  - что делать, если отмена между 30 минутами и 2 часами до поездки
+    (сейчас: 50%, как у отмены «за 2 часа»).
+Эти значения нужно согласовать с заказчиком до защиты.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-
-from algorithm.grouping import Trip
-
-
-@dataclass
-class Vehicle:
-    id: str
-    capacity: int
-    busy: list[tuple[datetime, datetime]] = field(default_factory=list)
+from decimal import Decimal, ROUND_HALF_UP
 
 
-def is_free(vehicle: Vehicle, start: datetime, end: datetime, buffer: timedelta) -> bool:
-    """Свободен ли автобус в интервал [start, end] с учётом буфера."""
-    for b_start, b_end in vehicle.busy:
-        if start < b_end + buffer and b_start < end + buffer:
-            return False
-    return True
+@dataclass(frozen=True)
+class RefundPolicy:
+    instant_window: timedelta = timedelta(minutes=10)     # ПРЕДПОЛОЖЕНИЕ
+    full_refund_until_instant: Decimal = Decimal("1.00")
+    half_refund_before: timedelta = timedelta(hours=2)
+    no_refund_within: timedelta = timedelta(minutes=30)
+    middle_ratio: Decimal = Decimal("0.50")               # ПРЕДПОЛОЖЕНИЕ: между 30 мин и 2 ч
 
 
-def assign_vehicles(
-    trips: list[Trip],
-    vehicles: list[Vehicle],
-    trip_duration: timedelta = timedelta(minutes=40),
-    buffer: timedelta = timedelta(minutes=15),
-) -> dict[str, str | None]:
-    """
-    Возвращает {trip_id: vehicle_id или None}.
-    None означает, что подходящего автобуса нет (нужно решение диспетчера).
-    """
-    result: dict[str, str | None] = {}
-    for trip in sorted(trips, key=lambda t: t.start_time):
-        start = trip.start_time
-        end = start + trip_duration
-        candidates = [
-            v for v in vehicles
-            if v.capacity >= trip.seats_used and is_free(v, start, end, buffer)
-        ]
-        if not candidates:
-            result[trip.id] = None
-            continue
-        best = min(candidates, key=lambda v: v.capacity)   # best fit
-        best.busy.append((start, end))
-        result[trip.id] = best.id
-    return result
+def refund_ratio(
+    paid_at: datetime,
+    departure_at: datetime,
+    cancelled_at: datetime,
+    policy: RefundPolicy = RefundPolicy(),
+) -> Decimal:
+    """Доля стоимости, которая возвращается пассажиру (от 0 до 1)."""
+    if cancelled_at >= departure_at:
+        return Decimal("0")
+    if cancelled_at - paid_at <= policy.instant_window:
+        return policy.full_refund_until_instant
+    time_left = departure_at - cancelled_at
+    if time_left < policy.no_refund_within:
+        return Decimal("0")
+    if time_left >= policy.half_refund_before:
+        return Decimal("0.50")
+    return policy.middle_ratio
+
+
+def refund_amount(
+    price: Decimal,
+    paid_at: datetime,
+    departure_at: datetime,
+    cancelled_at: datetime,
+    policy: RefundPolicy = RefundPolicy(),
+) -> Decimal:
+    """Сумма возврата в рублях, округлённая до копеек."""
+    ratio = refund_ratio(paid_at, departure_at, cancelled_at, policy)
+    return (price * ratio).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
