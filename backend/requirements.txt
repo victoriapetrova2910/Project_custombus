@@ -7,3 +7,4 @@ pydantic-settings
 pytest
 httpx
 python-dotenv
+alembic
