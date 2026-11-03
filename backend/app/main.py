@@ -6,7 +6,9 @@ from app.api.preorders import my_router
 
 from app.api.payments import router as payments_router
 
+from app.api.stops import router as stops_router
 from app.api.trips import router as trips_router
+from app.api.trips import search_router
 
 app = FastAPI(
     title="По пути",
@@ -18,6 +20,8 @@ app.include_router(preorders_router)
 app.include_router(my_router)
 app.include_router(payments_router)
 app.include_router(trips_router)
+app.include_router(search_router)
+app.include_router(stops_router)
 
 @app.get("/")
 def root():
