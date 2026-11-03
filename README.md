@@ -38,6 +38,7 @@
 | Таблица предположений | [Таблица предположений.md](https://github.com/victoriapetrova2910/Project_custombus/blob/main/docs/research/research_study/table_of_assumptions.md) | Команда переводит свои догадки в конкретные задачи для исследования (CustDev), чтобы проверить, жизнеспособна ли идея сервиса. |
 | AS-IS диаграмма | [AS-IS диаграмма](https://github.com/victoriapetrova2910/Project_custombus/blob/main/docs/research/research_study/as-is.md) | Схема наглядно иллюстрирует клиентский путь в сервисе «По пути» от заказа до прибытия, показывая, как сбои приложения и непредсказуемые заезды алгоритма разрушают точность поездки на каждом этапе. |
 | Итоги встречи с заказчиком | [Итоги встречи.md](https://github.com/victoriapetrova2910/Project_custombus/blob/main/docs/research/research_study/interview_results.md) | Ключевые выводы после встречи с заказчиком.|
+| Риски и гипотезы |   |   |
 
 ---
 ## Структура репозитория
