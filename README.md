@@ -40,6 +40,7 @@
 | Итоги встречи с заказчиком | [Итоги встречи.md](https://github.com/victoriapetrova2910/Project_custombus/blob/main/docs/research/research_study/interview_results.md) | Ключевые выводы после встречи с заказчиком.|
 | Риски и гипотезы |   |   |
 | Диаграмма TO-BE | [TO-BE диаграмма](https://github.com/victoriapetrova2910/Project_custombus/blob/main/docs/research/research_study/to-be.md) | Диаграмма показывает целевой процесс предварительного бронирования поездки — от оформления заказа пассажиром до формирования маршрута и выполнения поездки.|
+| Функциональные требования| [Функциональные требования](https://github.com/victoriapetrova2910/Project_custombus/blob/main/docs/research/research_study/functional_requirements.md)| |
 
 ---
 ## Структура репозитория
