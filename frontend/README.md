@@ -1,75 +1,162 @@
-# React + TypeScript + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# По пути — Frontend
 
-Currently, two official plugins are available:
+Веб-интерфейс учебного проекта «По пути» — сервиса заказа
+микроавтобусов по требованию с возможностью предварительного
+планирования поездок.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Технологии
 
-## React Compiler
+- React
+- TypeScript
+- Vite
+- React Router
+- MapLibre GL JS
+- OpenFreeMap
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Требования
 
-## Expanding the ESLint configuration
+- Node.js
+- npm
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Локальный запуск
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+1. Клонировать репозиторий:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+   git clone https://github.com/victoriapetrova2910/Project_custombus.git
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+2. Перейти в папку frontend:
 
-```
+   cd Project_custombus/frontend
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+3. Установить зависимости:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+   npm install
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+4. Запустить приложение:
 
-```
+   npm run dev
+
+5. Открыть адрес, указанный Vite в терминале.
+   По умолчанию:
+
+   http://localhost:5173/
+
+## Сборка
+
+Проверка TypeScript и сборка приложения:
+
+   npm run build
+
+Проверка качества кода:
+
+   npm run lint
+
+Собранные файлы размещаются в папке dist/.
+
+## Страницы
+
+| Адрес | Назначение |
+| --- | --- |
+| / | Главная страница с формой заказа и картой |
+| /search | Результаты поиска транспорта |
+| /my-trips | Раздел «Мои поездки» (пока заглушка) |
+
+## Режимы поездки
+
+### Поехать сейчас
+
+Пользователь выбирает остановки отправления и назначения,
+указывает количество пассажиров и запускает поиск.
+
+В дальнейшем система должна находить подходящий транспорт
+и показывать предложение поездки.
+
+### Запланировать
+
+Пользователь дополнительно выбирает дату и время поездки.
+
+Предварительный заказ допускается в интервале
+от 30 минут до 48 часов вперёд, с шагом времени 10 минут.
+
+Это правило реализовано во frontend и должно быть
+согласовано с backend.
+
+## Текущая реализация
+
+Реализованы:
+
+- Главная страница.
+- Форма выбора параметров поездки.
+- Переключение режимов заказа.
+- Проверка пользовательского ввода.
+- Интерактивная карта.
+- Страница результатов поиска.
+- Демонстрационные состояния поиска:
+  - загрузка;
+  - транспорт найден;
+  - транспорт не найден;
+  - ошибка.
+- Базовая мобильная адаптация.
+- Подготовленный модуль API.
+
+## Ограничения текущей версии
+
+- Реальный поиск транспорта ещё не подключён.
+- Время подачи, стоимость и доступность мест —
+  демонстрационные значения.
+- Остановки пока вводятся текстом.
+- Бронирование и оплата не реализованы во frontend.
+- Маршруты и границы зон на карте пока не отображаются.
+
+## Структура проекта
+
+src/
+├── api/
+│   └── trips.ts
+├── components/
+│   ├── BusLogo.tsx
+│   ├── Header.tsx
+│   ├── SearchForm.tsx
+│   ├── SearchStatus.tsx
+│   ├── ServiceMap.tsx
+│   └── TripCard.tsx
+├── pages/
+│   ├── HomePage.tsx
+│   └── SearchPage.tsx
+├── App.tsx
+├── index.css
+└── main.tsx
+
+## Подключение backend
+
+Frontend предполагает взаимодействие с backend на FastAPI.
+
+В src/api/trips.ts подготовлена функция поиска
+запланированных поездок.
+
+Базовый URL можно передать через переменную окружения:
+
+   VITE_API_BASE_URL=http://127.0.0.1:8000
+
+Путь API и формат ответов необходимо окончательно
+согласовать с backend-командой.
+
+Для локальной настройки можно использовать файл
+frontend/.env.local. Его не следует коммитить.
+
+## Планируемые функции
+
+- Выбор остановок из реального справочника.
+- Поиск транспорта через backend.
+- Отображение реальных результатов поиска.
+- Бронирование поездок.
+- Отображение истории заказов.
+- Подсветка зон обслуживания.
+- Отображение точек А и Б на карте.
+- Построение маршрутов.
+
+## Статус
+
+Учебный прототип. Не является действующим сервисом
+заказа транспорта.
