@@ -744,3 +744,145 @@ a {
     max-width: 40px;
   }
 }
+
+
+/* Состояния поиска транспорта */
+
+.search-status {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 18px;
+  margin: 18px 0;
+  border: 1px solid #e1e8f2;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.search-status__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: #eaf0fa;
+  color: #315ca6;
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.search-status__content h2 {
+  margin: 0 0 7px;
+  color: #233f75;
+  font-size: 15px;
+}
+
+.search-status__content p {
+  margin: 0;
+  color: #728198;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.search-status--found .search-status__icon {
+  background: #e2f5eb;
+  color: #24835a;
+}
+
+.search-status--empty .search-status__icon {
+  background: #fff2cc;
+  color: #9a7100;
+}
+
+.search-status--error .search-status__icon {
+  background: #ffe7e7;
+  color: #bd4242;
+}
+
+.search-status__spinner {
+  width: 25px;
+  height: 25px;
+  border: 3px solid #d0def3;
+  border-top-color: #315ca6;
+  border-radius: 50%;
+  animation: search-spin 0.8s linear infinite;
+}
+
+@keyframes search-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-status__spinner {
+    animation: none;
+    border-top-color: #315ca6;
+  }
+}
+
+/* Временный переключатель демо-состояний */
+
+.search-demo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.search-demo-controls button {
+  padding: 8px 11px;
+  border: 1px solid #dfe6f0;
+  border-radius: 10px;
+  background: white;
+  color: #233f75;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.search-demo-controls button:hover {
+  background: #eef3fc;
+}
+
+.search-demo-controls button[aria-pressed="true"] {
+  border-color: #315ca6;
+  background: #e8effc;
+  font-weight: 700;
+}
+
+.search-demo-label {
+  margin: 20px 0 5px;
+  font-size: 12px;
+  color: #7b899d;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+}
+
+.brand__logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 14px;
+}
+
+.brand__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand__text strong {
+  font-size: 20px;
+  color: #1f4586;
+}
+
+.brand__text small {
+  font-size: 14px;
+  color: #7d8fb3;
+}

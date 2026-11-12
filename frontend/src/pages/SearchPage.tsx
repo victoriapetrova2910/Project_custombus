@@ -1,13 +1,17 @@
 
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import ServiceMap from "../components/ServiceMap";
+import SearchStatus, {
+  type SearchState,
+} from "../components/SearchStatus";
 import TripCard, {
   type RideMode,
   type RidePreview,
 } from "../components/TripCard";
 
-// Только демонстрационные данные для проверки дизайна.
+// Демонстрационные данные, не ответ backend.
 const demoRide: RidePreview = {
   pickupMinutes: 12,
   rideMinutes: 25,
@@ -15,11 +19,27 @@ const demoRide: RidePreview = {
   pricePerSeat: 150,
 };
 
+const demoStates: {
+  label: string;
+  value: SearchState;
+}[] = [
+  { label: "Поиск", value: "loading" },
+  { label: "Найден", value: "found" },
+  { label: "Нет транспорта", value: "empty" },
+  { label: "Ошибка", value: "error" },
+];
+
 export default function SearchPage() {
   const [params] = useSearchParams();
 
+  // Временное состояние для демонстрации интерфейса.
+  const [searchState, setSearchState] =
+    useState<SearchState>("found");
+
   const mode: RideMode =
-    params.get("mode") === "scheduled" ? "scheduled" : "now";
+    params.get("mode") === "scheduled"
+      ? "scheduled"
+      : "now";
 
   const from = params.get("from")?.trim() ?? "";
   const to = params.get("to")?.trim() ?? "";
@@ -27,9 +47,13 @@ export default function SearchPage() {
   const date = params.get("date") ?? "";
   const time = params.get("time") ?? "";
 
-  const passengerCount = Number(params.get("passengers"));
+  const passengerCount = Number(
+    params.get("passengers")
+  );
+
   const passengers =
-    Number.isInteger(passengerCount) && passengerCount > 0
+    Number.isInteger(passengerCount) &&
+    passengerCount > 0
       ? passengerCount
       : 1;
 
@@ -58,16 +82,12 @@ export default function SearchPage() {
               : "Предварительный заказ"}
           </span>
 
-          <h1>
-            {mode === "now"
-              ? "Поиск транспорта"
-              : "Планирование поездки"}
-          </h1>
+          <h1>Поиск транспорта</h1>
 
           <p>
             {mode === "now"
-              ? "Подберём подходящий микроавтобус для вашей поездки."
-              : "Запланируйте поездку на удобную дату и время."}
+              ? "Подбираем подходящий микроавтобус."
+              : "Проверяем возможность поездки на выбранное время."}
           </p>
         </div>
 
@@ -93,9 +113,7 @@ export default function SearchPage() {
               </div>
 
               <div className="ride-summary__extra">
-                <span>
-                  Пассажиры: {passengers}
-                </span>
+                <span>Пассажиры: {passengers}</span>
 
                 {mode === "scheduled" && (
                   <span>
@@ -106,20 +124,50 @@ export default function SearchPage() {
             </div>
 
             <div className="demo-warning">
-              Ниже показан демонстрационный вариант
-              оформления. Реальный поиск пока не работает.
+              Демонстрация интерфейса. Поиск
+              реального транспорта пока не подключён.
             </div>
 
-            <TripCard
-              ride={demoRide}
-              mode={mode}
-              passengers={passengers}
-            />
+            <p className="search-demo-label">
+              Проверить состояние поиска:
+            </p>
+
+            <div
+              className="search-demo-controls"
+              role="group"
+              aria-label="Демонстрационные состояния поиска"
+            >
+              {demoStates.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  aria-pressed={
+                    searchState === item.value
+                  }
+                  onClick={() =>
+                    setSearchState(item.value)
+                  }
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            <SearchStatus state={searchState} />
+
+            {searchState === "found" && (
+              <TripCard
+                ride={demoRide}
+                mode={mode}
+                passengers={passengers}
+              />
+            )}
           </>
         ) : (
           <div className="demo-warning">
             Параметры поездки не заполнены.
-            Вернитесь на главную страницу и выберите маршрут.
+            Вернитесь на главную страницу
+            и выберите маршрут.
           </div>
         )}
       </section>
