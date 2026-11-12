@@ -1,6 +1,6 @@
 
 import SearchForm from "../components/SearchForm";
-import ServiceMap from "../components/ServiceMap";
+import ServiceMap from "../components/LazyServiceMap";
 
 export default function HomePage() {
   return (

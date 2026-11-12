@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import ServiceMap from "../components/ServiceMap";
+import ServiceMap from "../components/LazyServiceMap";
 import SearchStatus, {
   type SearchState,
 } from "../components/SearchStatus";
