@@ -14,12 +14,14 @@ type TripCardProps = {
   ride: RidePreview;
   mode: RideMode;
   passengers: number;
+  onBook?: () => void;
 };
 
 export default function TripCard({
   ride,
   mode,
   passengers,
+  onBook,
 }: TripCardProps) {
   const totalPrice = ride.pricePerSeat * passengers;
 
@@ -80,15 +82,17 @@ export default function TripCard({
 
       <button
         type="button"
-        className="ride-preview__button"
-        disabled
+        className={`ride-preview__button ${onBook ? "ride-preview__button--active" : ""}`}
+        onClick={onBook}
+        disabled={!onBook}
       >
-        Оформление пока недоступно
+        {onBook ? "Забронировать поездку" : "Оформление пока недоступно"}
       </button>
 
       <p className="ride-preview__note">
-        Время подачи, длительность, места и стоимость
-        демонстрационные. Реальный поиск пока не подключён.
+        {onBook
+          ? "Бронирование подтверждается после оплаты. Места резервируются мгновенно."
+          : "Время подачи, длительность, места и стоимость демонстрационные. Реальный поиск пока не подключён."}
       </p>
     </article>
   );

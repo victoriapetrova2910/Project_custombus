@@ -10,6 +10,7 @@ import TripCard, {
   type RideMode,
   type RidePreview,
 } from "../components/TripCard";
+import BookingModal from "../components/BookingModal";
 
 // Демонстрационные данные, не ответ backend.
 const demoRide: RidePreview = {
@@ -35,6 +36,7 @@ export default function SearchPage() {
   // Временное состояние для демонстрации интерфейса.
   const [searchState, setSearchState] =
     useState<SearchState>("found");
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   const mode: RideMode =
     params.get("mode") === "scheduled"
@@ -156,11 +158,31 @@ export default function SearchPage() {
             <SearchStatus state={searchState} />
 
             {searchState === "found" && (
-              <TripCard
-                ride={demoRide}
-                mode={mode}
-                passengers={passengers}
-              />
+              <>
+                <TripCard
+                  ride={demoRide}
+                  mode={mode}
+                  passengers={passengers}
+                  onBook={() => setIsBookingModalOpen(true)}
+                />
+                <BookingModal
+                  isOpen={isBookingModalOpen}
+                  onClose={() => setIsBookingModalOpen(false)}
+                  ride={{
+                    tripId: 1,
+                    from: from || "Метро Прокшино",
+                    to: to || "Коммунарка",
+                    departureTime:
+                      date && time
+                        ? `${date}T${time}:00`
+                        : new Date().toISOString(),
+                    pricePerSeat: demoRide.pricePerSeat,
+                    availableSeats: demoRide.availableSeats,
+                    passengers,
+                    mode,
+                  }}
+                />
+              </>
             )}
           </>
         ) : (

@@ -15,6 +15,7 @@ export default function Header() {
         <NavLink to="/" end>Главная</NavLink>
         <NavLink to="/search">Найти поездку</NavLink>
         <NavLink to="/my-trips">Мои поездки</NavLink>
+        <NavLink to="/dispatcher">Диспетчер (ФТ10)</NavLink>
       </nav>
     </header>
   );
