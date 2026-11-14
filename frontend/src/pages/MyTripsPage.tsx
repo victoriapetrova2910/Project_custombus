@@ -1,241 +1,277 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  getMyPreorders,
-  cancelPreorder,
-  type Preorder,
-} from "../api/preorders";
+import type { Preorder } from "../api/preorders";
+import type { DemoProfile } from "../account/demoProfiles";
+import { readDemoOrders, updateDemoOrder } from "../account/demoOrders";
+import { useDemoAccount } from "../account/useDemoAccount";
 import PaymentForm from "../components/PaymentForm";
-import type { PaymentResponse } from "../api/payments";
+import QrTicket from "../components/QrTicket";
 
-type TripFilter = "upcoming" | "completed" | "cancelled" | "all";
+const filters = [
+  ["upcoming", "Предстоящие"],
+  ["completed", "Завершённые"],
+  ["cancelled", "Отменённые"],
+  ["all", "Все"],
+] as const;
+
+type TripFilter = (typeof filters)[number][0];
+type TripDialog = { kind: "details" | "pay" | "cancel"; trip: Preorder };
+
+const statuses = {
+  pending: { label: "Ожидает оплаты", className: "pending" },
+  confirmed: { label: "Подтверждено", className: "confirmed" },
+  cancelled: { label: "Отменено", className: "cancelled" },
+  completed: { label: "Завершено", className: "completed" },
+};
+
+const dateTime = new Intl.DateTimeFormat("ru-RU", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function total(trip: Preorder) {
+  return trip.total_price ?? (trip.price_per_seat ?? 150) * trip.seats_count;
+}
+
+function getStatus(trip: Preorder, now: number) {
+  if (trip.status === "confirmed" && Date.parse(trip.departure_time) <= now) {
+    return "completed";
+  }
+
+  return trip.status;
+}
+
+function calculateRefund(trip: Preorder, now: number) {
+  if (!trip.paid_at) {
+    return { amount: 0, note: "Демо-заказ не был оплачен." };
+  }
+
+  const minutesSincePayment = (now - Date.parse(trip.paid_at)) / 60_000;
+  const minutesToTrip = (Date.parse(trip.departure_time) - now) / 60_000;
+
+  if (minutesSincePayment >= 0 && minutesSincePayment <= 10) {
+    return {
+      amount: total(trip),
+      note: "До 10 минут после тестовой оплаты — 100%.",
+    };
+  }
+
+  if (minutesToTrip < 30) {
+    return {
+      amount: 0,
+      note: "Менее 30 минут до отправления — 0%.",
+    };
+  }
+
+  return { amount: total(trip) * 0.5, note: "По правилам демонстрации — 50%." };
+}
+
+function loadTrips(userId: number) {
+  try {
+    return { trips: readDemoOrders(userId), error: "" };
+  } catch {
+    return {
+      trips: [],
+      error: "Не удалось прочитать демо-заказы в этом браузере.",
+    };
+  }
+}
 
 export default function MyTripsPage() {
-  const [trips, setTrips] = useState<Preorder[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<TripFilter>("upcoming");
+  const { profile, setProfile } = useDemoAccount();
 
-  // Состояние модального окна отмены поездки
-  const [tripToCancel, setTripToCancel] = useState<Preorder | null>(null);
-  const [isCancelling, setIsCancelling] = useState(false);
+  if (profile) {
+    return (
+      <DemoTrips
+        key={profile.id}
+        profile={profile}
+        onSignOut={() => setProfile(null)}
+      />
+    );
+  }
 
-  // Состояние модального окна доплаты для pending заказов
-  const [tripToPay, setTripToPay] = useState<Preorder | null>(null);
+  const intent = { from: "/my-trips" };
 
-  // Состояние просмотра подробной информации
-  const [selectedTripDetails, setSelectedTripDetails] = useState<Preorder | null>(
-    null
+  return (
+    <main className="account-page">
+      <section className="account-card" aria-labelledby="account-heading">
+        <span className="eyebrow">Личный кабинет пассажира</span>
+        <h1 id="account-heading">Мои поездки</h1>
+        <p>Войдите, чтобы посмотреть свои демо-заказы.</p>
+
+        <div className="account-actions">
+          <Link to="/login" state={intent} className="btn btn--primary">
+            Войти
+          </Link>
+          <Link to="/register" state={intent} className="btn btn--secondary">
+            Создать аккаунт
+          </Link>
+        </div>
+      </section>
+    </main>
   );
+}
 
-  const loadTrips = async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      const data = await getMyPreorders(1);
-      setTrips(data);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setErrorMessage(err.message);
-      } else {
-        setErrorMessage("Не удалось загрузить историю поездок.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+function DemoTrips({
+  profile,
+  onSignOut,
+}: {
+  profile: DemoProfile;
+  onSignOut: () => void;
+}) {
+  const [history, setHistory] = useState(() => loadTrips(profile.id));
+  const [filter, setFilter] = useState<TripFilter>("upcoming");
+  const [dialog, setDialog] = useState<TripDialog | null>(null);
+  const [dialogError, setDialogError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    loadTrips();
-  }, []);
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
 
-  // Расчёт суммы возврата по правилам сервиса (refund.py)
-  const calculateRefund = (trip: Preorder) => {
-    const price = trip.total_price || (trip.price_per_seat || 150) * trip.seats_count;
-    const now = new Date();
-    const departure = new Date(trip.departure_time);
-    const paidAt = trip.paid_at ? new Date(trip.paid_at) : new Date(trip.created_at);
-
-    // Мгновенная отмена: до 10 минут после оплаты -> 100%
-    const minutesSincePaid = (now.getTime() - paidAt.getTime()) / (60 * 1000);
-    if (minutesSincePaid <= 10) {
-      return { ratio: 1.0, amount: price, note: "Мгновенная отмена (до 10 минут) — возврат 100%" };
+    function refreshTrips(event: StorageEvent) {
+      if (event.key !== `po_puti_demo_orders_v1_${profile.id}`) return;
+      const fresh = loadTrips(profile.id);
+      setHistory(fresh);
+      setDialog((current) => {
+        if (!current) return null;
+        const trip = fresh.trips.find((item) => item.id === current.trip.id);
+        return trip ? { ...current, trip } : null;
+      });
     }
 
-    // Время до отправления
-    const hoursLeft = (departure.getTime() - now.getTime()) / (60 * 60 * 1000);
-    if (hoursLeft <= 0.5) {
-      return { ratio: 0, amount: 0, note: "Менее 30 минут до отправления — возврат 0% (место возвращается в продажу)" };
-    }
-    if (hoursLeft >= 2) {
-      return { ratio: 0.5, amount: price * 0.5, note: "Более 2 часов до поездки — возврат 50%" };
+    window.addEventListener("storage", refreshTrips);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("storage", refreshTrips);
+    };
+  }, [profile.id]);
+
+  const visibleTrips = history.trips.filter((trip) => {
+    const status = getStatus(trip, now);
+
+    if (filter === "all") return true;
+    if (filter === "completed" || filter === "cancelled") {
+      return status === filter;
     }
 
-    return { ratio: 0.5, amount: price * 0.5, note: "От 30 минут до 2 часов — возврат 50%" };
-  };
-
-  const handleConfirmCancel = async () => {
-    if (!tripToCancel) return;
-    setIsCancelling(true);
-    try {
-      await cancelPreorder(tripToCancel.id);
-      // Реактивно обновляем локальное состояние
-      setTrips((prev) =>
-        prev.map((t) =>
-          t.id === tripToCancel.id
-            ? { ...t, status: "cancelled", cancelled_at: new Date().toISOString() }
-            : t
-        )
-      );
-      setTripToCancel(null);
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Не удалось отменить заказ");
-    } finally {
-      setIsCancelling(false);
-    }
-  };
-
-  const handlePaymentSuccess = (_payment: PaymentResponse) => {
-    if (!tripToPay) return;
-    setTrips((prev) =>
-      prev.map((t) =>
-        t.id === tripToPay.id
-          ? { ...t, status: "confirmed", paid_at: new Date().toISOString() }
-          : t
-      )
+    return (
+      (status === "pending" || status === "confirmed") &&
+      Date.parse(trip.departure_time) > now
     );
-    setTripToPay(null);
-  };
-
-  // Фильтрация поездок
-  const filteredTrips = trips.filter((t) => {
-    const isPast = new Date(t.departure_time) < new Date();
-    if (activeFilter === "upcoming") {
-      return (t.status === "confirmed" || t.status === "pending") && !isPast;
-    }
-    if (activeFilter === "completed") {
-      return t.status === "completed" || (t.status === "confirmed" && isPast);
-    }
-    if (activeFilter === "cancelled") {
-      return t.status === "cancelled";
-    }
-    return true;
   });
 
-  const getStatusBadge = (trip: Preorder) => {
-    const isPast = new Date(trip.departure_time) < new Date();
-    if (trip.status === "cancelled") {
-      return <span className="status-badge status-badge--cancelled">Отменено</span>;
+  function openDialog(kind: TripDialog["kind"], trip: Preorder) {
+    setDialogError("");
+    setDialog({ kind, trip });
+  }
+
+  function saveUpdatedTrip(updated: Preorder) {
+    setHistory((current) => ({
+      ...current,
+      trips: current.trips.map((trip) =>
+        trip.id === updated.id ? updated : trip
+      ),
+    }));
+    setDialog(null);
+  }
+
+  function confirmCancel() {
+    if (!dialog) return;
+
+    try {
+      saveUpdatedTrip(updateDemoOrder(profile.id, dialog.trip.id, "cancel"));
+    } catch (error) {
+      setDialogError(
+        error instanceof Error ? error.message : "Не удалось отменить заказ."
+      );
     }
-    if (trip.status === "completed" || (trip.status === "confirmed" && isPast)) {
-      return <span className="status-badge status-badge--completed">Завершено</span>;
+  }
+
+  function statusBadge(trip: Preorder) {
+    if (trip.demo_boarded_at) {
+      return <span className="status-badge status-badge--confirmed">Посадка отмечена</span>;
     }
-    if (trip.status === "pending") {
-      return <span className="status-badge status-badge--pending">Ожидает оплаты</span>;
-    }
-    return <span className="status-badge status-badge--confirmed">Подтверждено</span>;
-  };
+    const status = statuses[getStatus(trip, now)];
+
+    return (
+      <span className={`status-badge status-badge--${status.className}`}>
+        {status.label}
+      </span>
+    );
+  }
 
   return (
     <main className="my-trips-page">
       <div className="my-trips-container">
-        <div className="my-trips-header">
+        <header className="my-trips-header">
           <div>
-            <span className="eyebrow">Личный кабинет пассажира</span>
+            <span className="eyebrow">Демонстрационный режим</span>
             <h1>Мои поездки</h1>
-            <p>Управление бронированиями, история поездок и статус заказов</p>
+            <p>{profile.name} · Демо-заказы в этом браузере</p>
           </div>
-          <Link to="/" className="btn btn--primary">
-            + Новая поездка
-          </Link>
-        </div>
 
-        {/* Фильтры */}
-        <div className="trips-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeFilter === "upcoming"}
-            className={`tab-btn ${activeFilter === "upcoming" ? "tab-btn--active" : ""}`}
-            onClick={() => setActiveFilter("upcoming")}
-          >
-            Предстоящие
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeFilter === "completed"}
-            className={`tab-btn ${activeFilter === "completed" ? "tab-btn--active" : ""}`}
-            onClick={() => setActiveFilter("completed")}
-          >
-            Завершённые
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeFilter === "cancelled"}
-            className={`tab-btn ${activeFilter === "cancelled" ? "tab-btn--active" : ""}`}
-            onClick={() => setActiveFilter("cancelled")}
-          >
-            Отменённые
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeFilter === "all"}
-            className={`tab-btn ${activeFilter === "all" ? "tab-btn--active" : ""}`}
-            onClick={() => setActiveFilter("all")}
-          >
-            Все ({trips.length})
-          </button>
-        </div>
-
-        {isLoading ? (
-          <div className="trips-loading">
-            <span className="spinner" />
-            <p>Загрузка ваших поездок...</p>
-          </div>
-        ) : errorMessage ? (
-          <div className="alert-box alert-box--error">
-            <p>{errorMessage}</p>
-            <button type="button" onClick={loadTrips} className="btn btn--secondary">
-              Повторить запрос
+          <div className="account-actions">
+            <Link to="/" className="btn btn--primary">
+              Новая поездка
+            </Link>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={onSignOut}
+            >
+              Выйти
             </button>
           </div>
-        ) : filteredTrips.length === 0 ? (
+        </header>
+
+        <div className="trips-tabs" role="group" aria-label="Фильтр поездок">
+          {filters.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={filter === id}
+              className={`tab-btn${filter === id ? " tab-btn--active" : ""}`}
+              onClick={() => setFilter(id)}
+            >
+              {id === "all" ? `${label} (${history.trips.length})` : label}
+            </button>
+          ))}
+        </div>
+
+        {history.error ? (
+          <div className="alert-box alert-box--error" role="alert">
+            <p>{history.error}</p>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => setHistory(loadTrips(profile.id))}
+            >
+              Повторить
+            </button>
+          </div>
+        ) : visibleTrips.length === 0 ? (
           <div className="trips-empty-state">
-            <div className="empty-icon">🚌</div>
             <h3>Поездок в этой категории нет</h3>
-            <p>
-              {activeFilter === "upcoming"
-                ? "У вас пока нет запланированных поездок. Найдите подходящий рейс на главной странице."
-                : "В выбранной вкладке нет записей."}
-            </p>
             <Link to="/" className="btn btn--primary">
               Найти поездку
             </Link>
           </div>
         ) : (
           <div className="trips-list">
-            {filteredTrips.map((trip) => {
-              const isPast = new Date(trip.departure_time) < new Date();
-              const canCancel = trip.status !== "cancelled" && !isPast;
-              const formattedDate = new Date(trip.departure_time).toLocaleString("ru-RU", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              });
+            {visibleTrips.map((trip) => {
+              const isFuture = Date.parse(trip.departure_time) > now;
+              const canCancel = isFuture && !trip.demo_boarded_at && ["pending", "confirmed"].includes(trip.status);
 
               return (
-                <article key={trip.id} className="trip-order-card">
+                <article className="trip-order-card" key={trip.id}>
                   <div className="trip-order-card__header">
                     <div className="order-number">
                       <strong>Заказ #{trip.id}</strong>
-                      <small>от {new Date(trip.created_at).toLocaleDateString("ru-RU")}</small>
+                      <small>
+                        от {new Date(trip.created_at).toLocaleDateString("ru-RU")}
+                      </small>
                     </div>
-                    {getStatusBadge(trip)}
+                    {statusBadge(trip)}
                   </div>
 
                   <div className="trip-order-card__route">
@@ -259,7 +295,7 @@ export default function MyTripsPage() {
                   <div className="trip-order-card__details">
                     <div className="detail-item">
                       <small>Дата и время</small>
-                      <strong>{formattedDate}</strong>
+                      <strong>{dateTime.format(new Date(trip.departure_time))}</strong>
                     </div>
                     <div className="detail-item">
                       <small>Пассажиров</small>
@@ -267,12 +303,7 @@ export default function MyTripsPage() {
                     </div>
                     <div className="detail-item">
                       <small>Стоимость</small>
-                      <strong>
-                        {(trip.total_price || (trip.price_per_seat || 150) * trip.seats_count).toLocaleString(
-                          "ru-RU"
-                        )}{" "}
-                        ₽
-                      </strong>
+                      <strong>{total(trip)} ₽</strong>
                     </div>
                   </div>
 
@@ -280,16 +311,16 @@ export default function MyTripsPage() {
                     <button
                       type="button"
                       className="btn btn--text"
-                      onClick={() => setSelectedTripDetails(trip)}
+                      onClick={() => openDialog("details", trip)}
                     >
-                      Подробнее
+                      {isFuture && trip.status === "confirmed" && trip.demo_ticket_code && !trip.demo_boarded_at ? "QR-билет" : "Подробнее"}
                     </button>
 
-                    {trip.status === "pending" && (
+                    {isFuture && trip.status === "pending" && (
                       <button
                         type="button"
                         className="btn btn--primary btn--sm"
-                        onClick={() => setTripToPay(trip)}
+                        onClick={() => openDialog("pay", trip)}
                       >
                         Оплатить заказ
                       </button>
@@ -299,7 +330,7 @@ export default function MyTripsPage() {
                       <button
                         type="button"
                         className="btn btn--danger-outline btn--sm"
-                        onClick={() => setTripToCancel(trip)}
+                        onClick={() => openDialog("cancel", trip)}
                       >
                         Отменить поездку
                       </button>
@@ -311,152 +342,132 @@ export default function MyTripsPage() {
           </div>
         )}
 
-        {/* Модальное окно подтверждения отмены с расчётом возврата (ФТ5) */}
-        {tripToCancel && (
-          <div className="modal-overlay" onClick={() => setTripToCancel(null)}>
-            <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <span className="eyebrow eyebrow--danger">Отмена заказа</span>
-                <h2>Отменить поездку #{tripToCancel.id}?</h2>
-              </div>
-
-              <div className="cancel-refund-info">
-                <p>
-                  Вы собираетесь отменить поездку по маршруту:
-                  <br />
-                  <strong>
-                    {tripToCancel.departure_point} → {tripToCancel.destination_point}
-                  </strong>
-                </p>
-
-                <div className="refund-card">
-                  <span className="refund-card__title">Правила возврата средств:</span>
-                  <p className="refund-card__calc">
-                    Сумма возврата:{" "}
-                    <strong>{calculateRefund(tripToCancel).amount.toLocaleString("ru-RU")} ₽</strong>
-                  </p>
-                  <small>{calculateRefund(tripToCancel).note}</small>
-                </div>
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  onClick={() => setTripToCancel(null)}
-                  disabled={isCancelling}
-                >
-                  Оставить заказ
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--danger"
-                  onClick={handleConfirmCancel}
-                  disabled={isCancelling}
-                >
-                  {isCancelling ? "Отмена..." : "Подтвердить отмену"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Модальное окно оплаты отложенного заказа */}
-        {tripToPay && (
-          <div className="modal-overlay" onClick={() => setTripToPay(null)}>
-            <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-              <button className="modal-close-btn" onClick={() => setTripToPay(null)}>
-                ×
-              </button>
-              <PaymentForm
-                preorderId={tripToPay.id}
-                amount={
-                  tripToPay.total_price ||
-                  (tripToPay.price_per_seat || 150) * tripToPay.seats_count
-                }
-                onSuccess={handlePaymentSuccess}
-                onCancel={() => setTripToPay(null)}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Модальное окно полной информации о заказе */}
-        {selectedTripDetails && (
-          <div className="modal-overlay" onClick={() => setSelectedTripDetails(null)}>
-            <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <span className="eyebrow">Информация о бронировании</span>
-                <h2>Заказ #{selectedTripDetails.id}</h2>
-              </div>
-
-              <div className="full-details-list">
-                <div className="detail-row">
-                  <span>Статус:</span>
-                  {getStatusBadge(selectedTripDetails)}
-                </div>
-                <div className="detail-row">
-                  <span>Отправление:</span>
-                  <strong>{selectedTripDetails.departure_point}</strong>
-                </div>
-                <div className="detail-row">
-                  <span>Назначение:</span>
-                  <strong>{selectedTripDetails.destination_point}</strong>
-                </div>
-                <div className="detail-row">
-                  <span>Время отправления:</span>
-                  <strong>
-                    {new Date(selectedTripDetails.departure_time).toLocaleString("ru-RU")}
-                  </strong>
-                </div>
-                <div className="detail-row">
-                  <span>Забронировано мест:</span>
-                  <strong>{selectedTripDetails.seats_count}</strong>
-                </div>
-                <div className="detail-row">
-                  <span>Сумма:</span>
-                  <strong>
-                    {(
-                      selectedTripDetails.total_price ||
-                      (selectedTripDetails.price_per_seat || 150) *
-                        selectedTripDetails.seats_count
-                    ).toLocaleString("ru-RU")}{" "}
-                    ₽
-                  </strong>
-                </div>
-                <div className="detail-row">
-                  <span>Дата оформления:</span>
-                  <small>
-                    {new Date(selectedTripDetails.created_at).toLocaleString("ru-RU")}
-                  </small>
-                </div>
-                {selectedTripDetails.paid_at && (
-                  <div className="detail-row">
-                    <span>Дата оплаты:</span>
-                    <small>
-                      {new Date(selectedTripDetails.paid_at).toLocaleString("ru-RU")}
-                    </small>
+        {dialog && (
+          <div
+            className="modal-overlay"
+            onClick={() => setDialog(null)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setDialog(null);
+            }}
+          >
+            <div
+              className="modal-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Демо-заказ ${dialog.trip.id}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              {dialog.kind === "pay" ? (
+                <PaymentForm
+                  userId={profile.id}
+                  preorderId={dialog.trip.id}
+                  amount={total(dialog.trip)}
+                  onSuccess={saveUpdatedTrip}
+                  onCancel={() => setDialog(null)}
+                />
+              ) : dialog.kind === "cancel" ? (
+                <>
+                  <div className="modal-header">
+                    <h2>Отменить поездку #{dialog.trip.id}?</h2>
                   </div>
-                )}
-                {selectedTripDetails.cancelled_at && (
-                  <div className="detail-row">
-                    <span>Дата отмены:</span>
-                    <small>
-                      {new Date(selectedTripDetails.cancelled_at).toLocaleString("ru-RU")}
-                    </small>
-                  </div>
-                )}
-              </div>
 
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={() => setSelectedTripDetails(null)}
-                >
-                  Закрыть
-                </button>
-              </div>
+                  <p>{dialog.trip.departure_point} → {dialog.trip.destination_point}</p>
+
+                  <div className="refund-card">
+                    <p>
+                      Расчётный возврат в демо —{" "}
+                      <strong>{calculateRefund(dialog.trip, now).amount} ₽</strong>
+                    </p>
+                    <small>{calculateRefund(dialog.trip, now).note}</small>
+                  </div>
+
+                  {dialogError && (
+                    <p className="account-error" role="alert">
+                      {dialogError}
+                    </p>
+                  )}
+
+                  <div className="modal-actions">
+                    <button
+                      type="button"
+                      className="btn btn--secondary"
+                      onClick={() => setDialog(null)}
+                    >
+                      Оставить заказ
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--danger"
+                      onClick={confirmCancel}
+                    >
+                      Подтвердить отмену
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="modal-header">
+                    <h2>Заказ #{dialog.trip.id}</h2>
+                  </div>
+
+                  <div className="full-details-list">
+                    <div className="detail-row">
+                      <span>Статус</span>
+                      {statusBadge(dialog.trip)}
+                    </div>
+                    <div className="detail-row">
+                      <span>Посадка</span>
+                      <strong>{dialog.trip.departure_point}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>Высадка</span>
+                      <strong>{dialog.trip.destination_point}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>Отправление</span>
+                      <strong>{dateTime.format(new Date(dialog.trip.departure_time))}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>Мест</span>
+                      <strong>{dialog.trip.seats_count}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>Сумма</span>
+                      <strong>{total(dialog.trip)} ₽</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>Оформлен</span>
+                      <strong>{dateTime.format(new Date(dialog.trip.created_at))}</strong>
+                    </div>
+
+                    {dialog.trip.paid_at && (
+                      <div className="detail-row">
+                        <span>Тестовая оплата</span>
+                        <strong>{dateTime.format(new Date(dialog.trip.paid_at))}</strong>
+                      </div>
+                    )}
+
+                    {dialog.trip.cancelled_at && (
+                      <div className="detail-row">
+                        <span>Отменён</span>
+                        <strong>{dateTime.format(new Date(dialog.trip.cancelled_at))}</strong>
+                      </div>
+                    )}
+                  </div>
+
+                  {Date.parse(dialog.trip.departure_time) > now && <QrTicket order={dialog.trip} />}
+
+                  <div className="modal-actions">
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => setDialog(null)}
+                    >
+                      Закрыть
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

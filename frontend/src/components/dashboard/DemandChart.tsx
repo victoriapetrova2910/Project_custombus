@@ -15,7 +15,7 @@ export default function DemandChart({ data }: DemandChartProps) {
     <div className="dashboard-chart-card">
       <div className="chart-header">
         <div>
-          <h3>Почасовой профиль спроса (ФТ10)</h3>
+          <h3>Почасовой спрос</h3>
           <p>Распределение заказов пассажиров по времени суток</p>
         </div>
         <div className="chart-legend">

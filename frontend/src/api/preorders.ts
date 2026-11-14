@@ -31,6 +31,8 @@ export type Preorder = {
   total_price?: number;
   paid_at?: string;
   cancelled_at?: string;
+  demo_ticket_code?: string;
+  demo_boarded_at?: string;
 };
 
 const API_BASE_URL =
