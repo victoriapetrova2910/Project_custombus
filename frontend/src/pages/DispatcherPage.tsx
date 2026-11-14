@@ -1,4 +1,5 @@
 import { useState } from "react";
+import BoardingCheck from "../components/BoardingCheck";
 import KPI from "../components/dashboard/KPI";
 import DemandChart, { type DemandPoint } from "../components/dashboard/DemandChart";
 import CancellationChart, {
@@ -160,48 +161,33 @@ const demoZoneLoads: ZoneLoad[] = [
 export default function DispatcherPage() {
   const [selectedZone, setSelectedZone] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [trips] = useState<DispatcherTrip[]>(initialDemoTrips);
 
-  const filteredTrips = trips.filter((t) => {
-    if (selectedZone !== "all" && t.zone !== selectedZone) return false;
-    if (selectedStatus !== "all" && t.status !== selectedStatus) return false;
-    return true;
+  const filteredTrips = initialDemoTrips.filter((trip) => {
+    const matchesZone = selectedZone === "all" || trip.zone === selectedZone;
+    const matchesStatus = selectedStatus === "all" || trip.status === selectedStatus;
+    return matchesZone && matchesStatus;
   });
 
-  const getStatusLabel = (status: DispatcherTrip["status"]) => {
-    switch (status) {
-      case "completed":
-        return <span className="status-badge status-badge--completed">Завершён</span>;
-      case "active":
-        return <span className="status-badge status-badge--confirmed">На линии</span>;
-      case "scheduled":
-        return <span className="status-badge status-badge--pending">Запланирован</span>;
-    }
+  const statuses = {
+    scheduled: { label: "Запланирован", className: "pending" },
+    active: { label: "На линии", className: "confirmed" },
+    completed: { label: "Завершён", className: "completed" },
   };
 
   return (
     <main className="dispatcher-page">
       <div className="dispatcher-container">
-        {/* Заголовок и бейдж ФТ10 */}
-        <div className="dispatcher-header">
+        <header className="dispatcher-header">
           <div>
-            <div className="dispatcher-badge-row">
-              <span className="eyebrow">Мониторинг и аналитика</span>
-              <span className="demo-badge-pill">ФТ10 • Оценка эффективности</span>
-            </div>
-            <h1>Диспетчерская панель «По пути»</h1>
-            <p>
-              Контроль выполнения запланированных рейсов, анализ спроса и загрузки подвижного состава
-            </p>
+            <h1>Панель диспетчера</h1>
+            <p>Рейсы, спрос и загрузка микроавтобусов</p>
           </div>
-          <div className="dispatcher-time-indicator">
-            <span className="live-dot" />
-            <span>Система активна • Обновлено только что</span>
-          </div>
-        </div>
+          <span className="dispatcher-demo">Демонстрационные данные</span>
+        </header>
 
-        {/* 1. Блок ключевых показателей (KPI) */}
-        <section className="dispatcher-section">
+        <BoardingCheck />
+
+        <section className="dispatcher-section" aria-label="Сводка">
           <KPI
             data={{
               totalPreorders: 342,
@@ -213,110 +199,102 @@ export default function DispatcherPage() {
           />
         </section>
 
-        {/* 2. Графики: спрос, отмены, загрузка */}
-        <section className="dispatcher-section">
-          <div className="charts-grid">
-            <DemandChart data={demoDemandData} />
-            <div className="charts-grid__sub">
-              <LoadChart zones={demoZoneLoads} />
-              <CancellationChart categories={demoCancellationCategories} />
+        <section className="dispatcher-section table-card" aria-labelledby="trips-heading">
+          <div className="table-card__header">
+            <div>
+              <h2 id="trips-heading">Рейсы</h2>
+              <p aria-live="polite">
+                Показано рейсов: {filteredTrips.length} из {initialDemoTrips.length}
+              </p>
             </div>
+
+            <div className="table-filters">
+              <select
+                className="filter-select"
+                aria-label="Зона рейса"
+                value={selectedZone}
+                onChange={(event) => setSelectedZone(event.target.value)}
+              >
+                <option value="all">Все зоны</option>
+                <option value="Коммунарка">Коммунарка</option>
+                <option value="Троицк">Троицк</option>
+                <option value="Сколково">Сколково</option>
+              </select>
+
+              <select
+                className="filter-select"
+                aria-label="Статус рейса"
+                value={selectedStatus}
+                onChange={(event) => setSelectedStatus(event.target.value)}
+              >
+                <option value="all">Все статусы</option>
+                <option value="scheduled">Запланирован</option>
+                <option value="active">На линии</option>
+                <option value="completed">Завершён</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="table-responsive" role="region" aria-label="Таблица рейсов" tabIndex={0}>
+            <table className="trips-table">
+              <thead>
+                <tr>
+                  <th scope="col">№</th>
+                  <th scope="col">Транспорт</th>
+                  <th scope="col">Зона</th>
+                  <th scope="col">Маршрут</th>
+                  <th scope="col">Отправление</th>
+                  <th scope="col">Заполняемость</th>
+                  <th scope="col">Статус</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTrips.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="trips-table__empty">
+                      Нет рейсов по выбранным фильтрам.
+                    </td>
+                  </tr>
+                )}
+
+                {filteredTrips.map((trip) => {
+                  const load = Math.round((trip.occupiedSeats / trip.totalSeats) * 100);
+                  const status = statuses[trip.status];
+
+                  return (
+                    <tr key={trip.id}>
+                      <td><strong>#{trip.id}</strong></td>
+                      <td><span className="bus-number-badge">{trip.busNumber}</span></td>
+                      <td>{trip.zone}</td>
+                      <td className="route-cell">{trip.route}</td>
+                      <td><strong>{trip.departureTime}</strong></td>
+                      <td>
+                        <div className="load-cell">
+                          <span>{trip.occupiedSeats} / {trip.totalSeats} ({load}%)</span>
+                          <div className="load-mini-bar" aria-hidden="true">
+                            <div className="load-mini-fill" style={{ width: `${load}%` }} />
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`status-badge status-badge--${status.className}`}>
+                          {status.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </section>
 
-        {/* 3. Оперативная таблица рейсов с фильтрацией */}
-        <section className="dispatcher-section">
-          <div className="table-card">
-            <div className="table-card__header">
-              <div>
-                <h3>Оперативный план рейсов</h3>
-                <p>Назначенные микроавтобусы и текущая заполняемость рейсов</p>
-              </div>
-
-              <div className="table-filters">
-                <select
-                  value={selectedZone}
-                  onChange={(e) => setSelectedZone(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">Все зоны</option>
-                  <option value="Коммунарка">Коммунарка</option>
-                  <option value="Троицк">Троицк</option>
-                  <option value="Сколково">Сколково</option>
-                </select>
-
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">Все статусы</option>
-                  <option value="scheduled">Запланирован</option>
-                  <option value="active">На линии</option>
-                  <option value="completed">Завершён</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="table-responsive">
-              <table className="trips-table">
-                <thead>
-                  <tr>
-                    <th>№</th>
-                    <th>Транспорт</th>
-                    <th>Зона</th>
-                    <th>Маршрут</th>
-                    <th>Отправление</th>
-                    <th>Заполняемость</th>
-                    <th>Статус</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTrips.map((trip) => {
-                    const percent = Math.round(
-                      (trip.occupiedSeats / trip.totalSeats) * 100
-                    );
-                    return (
-                      <tr key={trip.id}>
-                        <td>
-                          <strong>#{trip.id}</strong>
-                        </td>
-                        <td>
-                          <span className="bus-number-badge">{trip.busNumber}</span>
-                        </td>
-                        <td>{trip.zone}</td>
-                        <td className="route-cell">{trip.route}</td>
-                        <td>
-                          <strong>{trip.departureTime}</strong>
-                        </td>
-                        <td>
-                          <div className="load-cell">
-                            <span>
-                              {trip.occupiedSeats} / {trip.totalSeats} ({percent}%)
-                            </span>
-                            <div className="load-mini-bar">
-                              <div
-                                className="load-mini-fill"
-                                style={{
-                                  width: `${percent}%`,
-                                  backgroundColor:
-                                    percent >= 85
-                                      ? "#22c55e"
-                                      : percent >= 50
-                                      ? "#3b82f6"
-                                      : "#f59e0b",
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-                        <td>{getStatusLabel(trip.status)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+        <section className="dispatcher-section" aria-labelledby="analytics-heading">
+          <h2 className="dispatcher-section__title" id="analytics-heading">Аналитика</h2>
+          <div className="charts-grid">
+            <DemandChart data={demoDemandData} />
+            <LoadChart zones={demoZoneLoads} />
+            <CancellationChart categories={demoCancellationCategories} />
           </div>
         </section>
       </div>

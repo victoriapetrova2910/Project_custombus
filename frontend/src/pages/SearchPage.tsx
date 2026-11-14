@@ -1,18 +1,17 @@
-
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 
-import ServiceMap from "../components/LazyServiceMap";
-import SearchStatus, {
-  type SearchState,
-} from "../components/SearchStatus";
-import TripCard, {
-  type RideMode,
-  type RidePreview,
-} from "../components/TripCard";
+import { useDemoAccount } from "../account/useDemoAccount";
 import BookingModal from "../components/BookingModal";
+import ServiceMap from "../components/LazyServiceMap";
+import SearchStatus, { type SearchState } from "../components/SearchStatus";
+import TripCard, { type RideMode, type RidePreview } from "../components/TripCard";
 
-// Демонстрационные данные, не ответ backend.
 const demoRide: RidePreview = {
   pickupMinutes: 12,
   rideMinutes: 25,
@@ -20,10 +19,7 @@ const demoRide: RidePreview = {
   pricePerSeat: 150,
 };
 
-const demoStates: {
-  label: string;
-  value: SearchState;
-}[] = [
+const demoStates: { label: string; value: SearchState }[] = [
   { label: "Поиск", value: "loading" },
   { label: "Найден", value: "found" },
   { label: "Нет транспорта", value: "empty" },
@@ -32,43 +28,53 @@ const demoStates: {
 
 export default function SearchPage() {
   const [params] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { profile } = useDemoAccount();
 
-  // Временное состояние для демонстрации интерфейса.
-  const [searchState, setSearchState] =
-    useState<SearchState>("found");
+  const [searchState, setSearchState] = useState<SearchState>("found");
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
-  const mode: RideMode =
-    params.get("mode") === "scheduled"
-      ? "scheduled"
-      : "now";
+  const searchUrl = location.pathname + location.search;
+  const resumeBooking = location.state?.resumeBooking === true;
 
+  const mode: RideMode = params.get("mode") === "scheduled" ? "scheduled" : "now";
   const from = params.get("from")?.trim() ?? "";
   const to = params.get("to")?.trim() ?? "";
-
   const date = params.get("date") ?? "";
   const time = params.get("time") ?? "";
 
-  const passengerCount = Number(
-    params.get("passengers")
-  );
-
+  const passengerCount = Number(params.get("passengers"));
   const passengers =
-    Number.isInteger(passengerCount) &&
-    passengerCount > 0
-      ? passengerCount
-      : 1;
+    Number.isInteger(passengerCount) && passengerCount > 0 ? passengerCount : 1;
 
   const validRoute = Boolean(
     from &&
-    to &&
-    from.toLowerCase() !== to.toLowerCase() &&
-    (mode === "now" || (date && time))
+      to &&
+      from.toLowerCase() !== to.toLowerCase() &&
+      (mode === "now" || (date && time)),
   );
 
-  const formattedDate = date
-    ? date.split("-").reverse().join(".")
-    : "";
+  const formattedDate = date ? date.split("-").reverse().join(".") : "";
+
+  function handleBook() {
+    if (profile) {
+      setIsBookingModalOpen(true);
+      return;
+    }
+
+    navigate("/login", {
+      state: { from: searchUrl, resumeBooking: true },
+    });
+  }
+
+  function handleCloseBooking() {
+    setIsBookingModalOpen(false);
+
+    if (resumeBooking) {
+      navigate(searchUrl, { replace: true, state: null });
+    }
+  }
 
   return (
     <main className="workspace">
@@ -79,9 +85,7 @@ export default function SearchPage() {
 
         <div className="results-heading">
           <span className="eyebrow">
-            {mode === "now"
-              ? "Поездка сейчас"
-              : "Предварительный заказ"}
+            {mode === "now" ? "Поездка сейчас" : "Предварительный заказ"}
           </span>
 
           <h1>Поиск транспорта</h1>
@@ -98,7 +102,6 @@ export default function SearchPage() {
             <div className="ride-summary">
               <div className="ride-summary__point">
                 <span className="route-dot route-dot--start" />
-
                 <div>
                   <small>Откуда</small>
                   <strong>{from}</strong>
@@ -107,7 +110,6 @@ export default function SearchPage() {
 
               <div className="ride-summary__point">
                 <span className="route-dot route-dot--finish" />
-
                 <div>
                   <small>Куда</small>
                   <strong>{to}</strong>
@@ -116,41 +118,31 @@ export default function SearchPage() {
 
               <div className="ride-summary__extra">
                 <span>Пассажиры: {passengers}</span>
-
                 {mode === "scheduled" && (
-                  <span>
-                    {formattedDate} в {time}
-                  </span>
+                  <span>{formattedDate} в {time}</span>
                 )}
               </div>
             </div>
 
             <div className="demo-warning">
-              Демонстрация интерфейса. Поиск
-              реального транспорта пока не подключён.
+              Демонстрация интерфейса. Поиск реального транспорта пока не подключён.
             </div>
 
-            <p className="search-demo-label">
-              Проверить состояние поиска:
-            </p>
+            <p className="search-demo-label">Проверить состояние поиска:</p>
 
             <div
               className="search-demo-controls"
               role="group"
               aria-label="Демонстрационные состояния поиска"
             >
-              {demoStates.map((item) => (
+              {demoStates.map(({ label, value }) => (
                 <button
-                  key={item.value}
+                  key={value}
                   type="button"
-                  aria-pressed={
-                    searchState === item.value
-                  }
-                  onClick={() =>
-                    setSearchState(item.value)
-                  }
+                  aria-pressed={searchState === value}
+                  onClick={() => setSearchState(value)}
                 >
-                  {item.label}
+                  {label}
                 </button>
               ))}
             </div>
@@ -163,32 +155,33 @@ export default function SearchPage() {
                   ride={demoRide}
                   mode={mode}
                   passengers={passengers}
-                  onBook={() => setIsBookingModalOpen(true)}
+                  onBook={handleBook}
                 />
-                <BookingModal
-                  isOpen={isBookingModalOpen}
-                  onClose={() => setIsBookingModalOpen(false)}
-                  ride={{
-                    tripId: 1,
-                    from: from || "Метро Прокшино",
-                    to: to || "Коммунарка",
-                    departureTime:
-                      date && time
-                        ? `${date}T${time}:00`
-                        : new Date().toISOString(),
-                    pricePerSeat: demoRide.pricePerSeat,
-                    availableSeats: demoRide.availableSeats,
-                    passengers,
-                    mode,
-                  }}
-                />
+
+                {profile && (isBookingModalOpen || resumeBooking) && (
+                  <BookingModal
+                    userId={profile.id}
+                    onClose={handleCloseBooking}
+                    ride={{
+                      tripId: 1,
+                      from,
+                      to,
+                      departureTime:
+                        mode === "scheduled" ? `${date}T${time}:00` : undefined,
+                      pickupMinutes: demoRide.pickupMinutes,
+                      pricePerSeat: demoRide.pricePerSeat,
+                      availableSeats: demoRide.availableSeats,
+                      passengers,
+                      mode,
+                    }}
+                  />
+                )}
               </>
             )}
           </>
         ) : (
           <div className="demo-warning">
-            Параметры поездки не заполнены.
-            Вернитесь на главную страницу
+            Параметры поездки не заполнены. Вернитесь на главную страницу
             и выберите маршрут.
           </div>
         )}

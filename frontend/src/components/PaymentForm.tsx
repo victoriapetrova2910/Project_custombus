@@ -1,234 +1,113 @@
-import React, { useState } from "react";
-import {
-  processCardPayment,
-  type CardDetails,
-  type PaymentResponse,
-} from "../api/payments";
+import { useState, type FormEvent } from "react";
+import type { Preorder } from "../api/preorders";
+import { updateDemoOrder } from "../account/demoOrders";
 
 type PaymentFormProps = {
+  userId: number;
   preorderId: number;
   amount: number;
-  onSuccess: (payment: PaymentResponse) => void;
+  onSuccess: (order: Preorder) => void;
   onCancel?: () => void;
 };
 
 export default function PaymentForm({
+  userId,
   preorderId,
   amount,
   onSuccess,
   onCancel,
 }: PaymentFormProps) {
-  const [selectedMethod, setSelectedMethod] = useState<"saved" | "new">("saved");
-  const [cardNumber, setCardNumber] = useState("2200 1234 5678 9012");
-  const [expiryDate, setExpiryDate] = useState("12/28");
-  const [cvv, setCvv] = useState("777");
-  const [saveCard, setSaveCard] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [simulateFailure, setSimulateFailure] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const formattedAmount = `${amount.toLocaleString("ru-RU")} ₽`;
 
-  const formatCardNumber = (value: string) => {
-    const raw = value.replace(/\D/g, "").slice(0, 16);
-    return raw.replace(/(\d{4})(?=\d)/g, "$1 ");
-  };
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
 
-  const formatExpiry = (value: string) => {
-    const raw = value.replace(/\D/g, "").slice(0, 4);
-    if (raw.length >= 2) {
-      return `${raw.slice(0, 2)}/${raw.slice(2)}`;
+    if (simulateFailure) {
+      setError("Сымитирован отказ банка. Заказ остался в ожидании оплаты.");
+      return;
     }
-    return raw;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-    setIsProcessing(true);
-
-    const cardDetails: CardDetails = {
-      cardNumber: selectedMethod === "saved" ? "2200 •••• •••• 4242" : cardNumber,
-      expiryDate: selectedMethod === "saved" ? "12/28" : expiryDate,
-      cvv: selectedMethod === "saved" ? "•••" : cvv,
-      saveCard,
-    };
 
     try {
-      const res = await processCardPayment(
-        preorderId,
-        amount,
-        cardDetails,
-        simulateFailure
+      onSuccess(updateDemoOrder(userId, preorderId, "pay"));
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Не удалось провести тестовую оплату."
       );
-      onSuccess(res);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setErrorMessage(err.message);
-      } else {
-        setErrorMessage("Не удалось провести оплату. Попробуйте снова.");
-      }
-    } finally {
-      setIsProcessing(false);
     }
-  };
+  }
 
   return (
-    <div className="payment-card">
-      <div className="payment-card__header">
-        <div className="payment-card__title">
-          <h3>Оплата поездки</h3>
-          <p>Безопасный платёж банковской картой</p>
-        </div>
-        <div className="payment-card__amount">
-          <small>Сумма</small>
-          <strong>{amount.toLocaleString("ru-RU")} ₽</strong>
-        </div>
+    <div className="payment-card payment-card--demo">
+      <div className="payment-card__title">
+        <span className="eyebrow">Демо-заказ #{preorderId}</span>
+        <h3>Тестовая оплата</h3>
+        <p>Деньги не списываются. Реквизиты карты не нужны.</p>
       </div>
 
-      {errorMessage && (
-        <div className="alert-box alert-box--error" role="alert">
-          <span className="alert-icon">⚠️</span>
-          <div>
-            <strong>Ошибка оплаты</strong>
-            <p>{errorMessage}</p>
-          </div>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="payment-form">
-        {/* Выбор карты: сохранённая или новая */}
-        <div className="payment-methods">
-          <label
-            className={`payment-method ${
-              selectedMethod === "saved" ? "payment-method--active" : ""
-            }`}
-          >
-            <input
-              type="radio"
-              name="paymentMethod"
-              checked={selectedMethod === "saved"}
-              onChange={() => setSelectedMethod("saved")}
-            />
-            <div className="payment-method__content">
-              <span className="mir-badge">МИР</span>
-              <div>
-                <strong>Привязанная карта</strong>
-                <small>•••• 4242 (Сбербанк)</small>
-              </div>
-            </div>
-          </label>
-
-          <label
-            className={`payment-method ${
-              selectedMethod === "new" ? "payment-method--active" : ""
-            }`}
-          >
-            <input
-              type="radio"
-              name="paymentMethod"
-              checked={selectedMethod === "new"}
-              onChange={() => setSelectedMethod("new")}
-            />
-            <div className="payment-method__content">
-              <span className="card-icon">💳</span>
-              <div>
-                <strong>Новая карта</strong>
-                <small>МИР, Visa, Mastercard</small>
-              </div>
-            </div>
-          </label>
+      <form className="payment-form" onSubmit={handleSubmit}>
+        <div className="demo-pay-total">
+          <span>Итого за поездку</span>
+          <strong>{formattedAmount}</strong>
         </div>
 
-        {selectedMethod === "new" && (
-          <div className="new-card-fields">
-            <div className="form-group">
-              <label htmlFor="card-number">Номер карты</label>
-              <div className="input-with-badge">
-                <input
-                  id="card-number"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="2200 0000 0000 0000"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                  required
-                />
-                <span className="mir-indicator">МИР</span>
-              </div>
+        <div>
+          <p className="demo-pay-method-label">Способ оплаты</p>
+          <div className="demo-pay-method">
+            <span className="demo-pay-method__icon" aria-hidden="true">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+              >
+                <rect x="3" y="5" width="18" height="14" rx="3" />
+                <path d="M3 10h18M7 15h4" />
+              </svg>
+            </span>
+            <div>
+              <strong>Банковская карта</strong>
+              <small>Тестовый режим</small>
             </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="card-expiry">Срок действия</label>
-                <input
-                  id="card-expiry"
-                  type="text"
-                  placeholder="ММ/ГГ"
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(formatExpiry(e.target.value))}
-                  maxLength={5}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="card-cvv">CVC / CVV</label>
-                <input
-                  id="card-cvv"
-                  type="password"
-                  placeholder="•••"
-                  value={cvv}
-                  onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 3))}
-                  maxLength={3}
-                  required
-                />
-              </div>
-            </div>
-
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={saveCard}
-                onChange={(e) => setSaveCard(e.target.checked)}
-              />
-              <span>Сохранить карту для будущих поездок «По пути»</span>
-            </label>
           </div>
-        )}
+        </div>
 
-        {/* Переключатель для проверки демонстрационных сценариев (ФТ4) */}
-        <div className="demo-toggle-row">
-          <label className="toggle-label">
+        <details className="demo-pay-options">
+          <summary>Настройки демонстрации</summary>
+          <label className="demo-payment-option">
             <input
               type="checkbox"
               checked={simulateFailure}
-              onChange={(e) => setSimulateFailure(e.target.checked)}
+              onChange={(event) => {
+                setSimulateFailure(event.target.checked);
+                setError("");
+              }}
             />
-            <span>Смоделировать отказ банка (тест сценария ошибки)</span>
+            Сымитировать отказ банка
           </label>
-        </div>
+        </details>
 
-        <div className="payment-actions">
+        {error && (
+          <p className="account-error" role="alert">
+            {error}
+          </p>
+        )}
+
+        <div className="modal-actions demo-pay-actions">
           {onCancel && (
-            <button
-              type="button"
-              className="btn btn--secondary"
-              onClick={onCancel}
-              disabled={isProcessing}
-            >
-              Отмена
+            <button type="button" className="btn btn--secondary" onClick={onCancel}>
+              Закрыть
             </button>
           )}
-
-          <button
-            type="submit"
-            className="btn btn--primary btn--pay"
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <span className="btn-spinner">Обработка платежа...</span>
-            ) : (
-              `Оплатить ${amount.toLocaleString("ru-RU")} ₽`
-            )}
+          <button type="submit" className="btn btn--primary">
+            Оплатить {formattedAmount}
           </button>
         </div>
       </form>

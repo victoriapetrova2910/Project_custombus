@@ -16,7 +16,7 @@ export default function LoadChart({ zones }: LoadChartProps) {
     <div className="dashboard-chart-card">
       <div className="chart-header">
         <div>
-          <h3>Загрузка транспорта по зонам (ФТ10)</h3>
+          <h3>Загрузка транспорта по зонам</h3>
           <p>Сравнение плановой и фактической утилизации вместимости микроавтобусов</p>
         </div>
         <div className="chart-legend">

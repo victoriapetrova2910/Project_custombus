@@ -12,10 +12,10 @@ type CancellationChartProps = {
 
 export default function CancellationChart({ categories }: CancellationChartProps) {
   return (
-    <div className="dashboard-chart-card">
+    <div className="dashboard-chart-card dashboard-chart-card--cancellations">
       <div className="chart-header">
         <div>
-          <h3>Аналитика отмен предзаказов (ФТ10)</h3>
+          <h3>Отмены предзаказов</h3>
           <p>Распределение отмен по времени до отправления рейса</p>
         </div>
       </div>

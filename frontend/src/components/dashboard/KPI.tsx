@@ -3,78 +3,39 @@ type KPIData = {
   completedTrips: number;
   cancelledTrips: number;
   noShowCount: number;
-  avgFleetLoad: number; // В процентах, например 78%
+  avgFleetLoad: number;
 };
 
-type KPIProps = {
-  data: KPIData;
-};
+const number = new Intl.NumberFormat("ru-RU");
+const percent = new Intl.NumberFormat("ru-RU", {
+  style: "percent",
+  maximumFractionDigits: 1,
+});
 
-export default function KPI({ data }: KPIProps) {
-  const cancelRate =
-    data.totalPreorders > 0
-      ? ((data.cancelledTrips / data.totalPreorders) * 100).toFixed(1)
-      : "0";
+export default function KPI({ data }: { data: KPIData }) {
+  function share(value: number) {
+    return data.totalPreorders > 0
+      ? `${percent.format(value / data.totalPreorders)} от предзаказов`
+      : "Нет предзаказов";
+  }
 
-  const noShowRate =
-    data.totalPreorders > 0
-      ? ((data.noShowCount / data.totalPreorders) * 100).toFixed(1)
-      : "0";
+  const metrics = [
+    ["Предзаказы", number.format(data.totalPreorders), "Всего оформлено"],
+    ["Выполнено", number.format(data.completedTrips), share(data.completedTrips)],
+    ["Отмены", number.format(data.cancelledTrips), share(data.cancelledTrips)],
+    ["Неявки", number.format(data.noShowCount), share(data.noShowCount)],
+    ["Загрузка мест", percent.format(data.avgFleetLoad / 100), "Средняя по парку"],
+  ];
 
   return (
-    <div className="kpi-grid">
-      <div className="kpi-card">
-        <div className="kpi-card__icon kpi-card__icon--blue">📋</div>
-        <div className="kpi-card__body">
-          <small>Всего предзаказов</small>
-          <strong>{data.totalPreorders.toLocaleString("ru-RU")}</strong>
-          <span className="kpi-trend kpi-trend--up">↑ +14% к прошлой неделе</span>
+    <dl className="kpi-grid" aria-label="Ключевые показатели">
+      {metrics.map(([label, value, detail]) => (
+        <div className="kpi-card" key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+          <dd className="kpi-card__detail">{detail}</dd>
         </div>
-      </div>
-
-      <div className="kpi-card">
-        <div className="kpi-card__icon kpi-card__icon--green">✅</div>
-        <div className="kpi-card__body">
-          <small>Выполнено поездок</small>
-          <strong>{data.completedTrips.toLocaleString("ru-RU")}</strong>
-          <span className="kpi-trend kpi-trend--neutral">
-            {data.totalPreorders > 0
-              ? `${Math.round((data.completedTrips / data.totalPreorders) * 100)}% от общего числа`
-              : "100%"}
-          </span>
-        </div>
-      </div>
-
-      <div className="kpi-card">
-        <div className="kpi-card__icon kpi-card__icon--orange">↩️</div>
-        <div className="kpi-card__body">
-          <small>Отмены предзаказов</small>
-          <strong>{data.cancelledTrips}</strong>
-          <span className="kpi-trend kpi-trend--sub">
-            Доля отмен: <strong>{cancelRate}%</strong>
-          </span>
-        </div>
-      </div>
-
-      <div className="kpi-card">
-        <div className="kpi-card__icon kpi-card__icon--red">⚠️</div>
-        <div className="kpi-card__body">
-          <small>Неявки пассажиров (No-show)</small>
-          <strong>{data.noShowCount}</strong>
-          <span className="kpi-trend kpi-trend--sub">
-            Уровень неявок: <strong>{noShowRate}%</strong>
-          </span>
-        </div>
-      </div>
-
-      <div className="kpi-card">
-        <div className="kpi-card__icon kpi-card__icon--yellow">🚐</div>
-        <div className="kpi-card__body">
-          <small>Средняя загрузка мест</small>
-          <strong>{data.avgFleetLoad}%</strong>
-          <span className="kpi-trend kpi-trend--up">План: 75% | Факт: {data.avgFleetLoad}%</span>
-        </div>
-      </div>
-    </div>
+      ))}
+    </dl>
   );
 }
