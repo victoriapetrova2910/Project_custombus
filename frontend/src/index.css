@@ -939,3 +939,1305 @@ a {
     animation: none;
   }
 }
+
+/* ==========================================================================
+   Стили компонентов Человека 4: Бронирование, Оплата, Личный кабинет и ФТ10
+   ========================================================================== */
+
+/* Общие стили кнопок */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 15px;
+  border: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  background: #ffda44;
+  color: #233f75;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: #f7ce2e;
+  transform: translateY(-1px);
+}
+
+.btn--secondary {
+  background: #e9eef7;
+  color: #233f75;
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background: #dde5f2;
+}
+
+.btn--danger {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.btn--danger-outline {
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid #fca5a5;
+}
+
+.btn--danger-outline:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.btn--text {
+  background: transparent;
+  color: #233f75;
+  padding: 8px 12px;
+}
+
+.btn--text:hover {
+  text-decoration: underline;
+}
+
+.btn--sm {
+  padding: 8px 14px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
+.btn--large {
+  padding: 15px 28px;
+  font-size: 16px;
+  width: 100%;
+}
+
+/* Активная кнопка в карточке TripCard */
+.ride-preview__button--active {
+  background: #ffda44 !important;
+  color: #233f75 !important;
+  cursor: pointer !important;
+  font-weight: 700;
+}
+
+.ride-preview__button--active:hover {
+  background: #f5ce2e !important;
+  box-shadow: 0 4px 14px rgba(255, 218, 68, 0.4);
+}
+
+/* ================= Модальные окна ================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 32, 60, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-dialog {
+  background: #ffffff;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 32px 28px;
+  position: relative;
+  box-shadow: 0 20px 45px rgba(18, 38, 77, 0.22);
+  animation: modal-enter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.modal-close-btn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.modal-header h2 {
+  margin: 4px 0 16px 0;
+  font-size: 24px;
+  color: #233f75;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.modal-actions .btn {
+  flex: 1;
+}
+
+/* ================= Сводка поездки в бронировании ================= */
+.ride-summary-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.passengers-counter-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.passengers-counter-block label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #475569;
+}
+
+.counter-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #f1f5f9;
+  border-radius: 14px;
+  padding: 6px 12px;
+  width: fit-content;
+}
+
+.counter-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #233f75;
+  font-size: 18px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.counter-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.counter-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.counter-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #233f75;
+  min-width: 24px;
+  text-align: center;
+}
+
+.counter-hint {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.price-calculation-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  background: #f1f5f9;
+  border-radius: 14px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.price-calculation-row__total {
+  text-align: right;
+  font-size: 15px;
+}
+
+.price-calculation-row__total strong {
+  font-size: 20px;
+  color: #233f75;
+  margin-left: 6px;
+}
+
+/* ================= Форма оплаты (PaymentForm) ================= */
+.payment-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.payment-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.payment-card__title h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #233f75;
+}
+
+.payment-card__title p {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.payment-card__amount {
+  text-align: right;
+}
+
+.payment-card__amount small {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.payment-card__amount strong {
+  font-size: 22px;
+  color: #233f75;
+}
+
+.payment-methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.payment-method {
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.payment-method--active {
+  border-color: #233f75;
+  background: #f8fafc;
+}
+
+.payment-method input[type="radio"] {
+  accent-color: #233f75;
+}
+
+.payment-method__content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.payment-method__content strong {
+  display: block;
+  font-size: 13px;
+  color: #233f75;
+}
+
+.payment-method__content small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.mir-badge {
+  background: #00985f;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 6px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+
+.card-icon {
+  font-size: 20px;
+}
+
+.new-card-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.form-group input {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.form-group input:focus {
+  border-color: #233f75;
+}
+
+.input-with-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-badge input {
+  width: 100%;
+  padding-right: 56px;
+}
+
+.mir-indicator {
+  position: absolute;
+  right: 14px;
+  background: #00985f;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.checkbox-row input {
+  accent-color: #233f75;
+}
+
+.demo-toggle-row {
+  background: #fffbeb;
+  border: 1px dashed #f59e0b;
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #b45309;
+  cursor: pointer;
+}
+
+.payment-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.btn--pay {
+  flex: 1;
+}
+
+/* ================= Экраны успешной оплаты и ошибки ================= */
+.booking-success-view,
+.booking-error-view {
+  text-align: center;
+  padding: 10px 0;
+}
+
+.success-icon-badge {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #ffffff;
+  font-size: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  box-shadow: 0 8px 20px rgba(34, 197, 94, 0.3);
+}
+
+.error-icon-badge {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+}
+
+.order-id-highlight {
+  font-size: 16px;
+  color: #64748b;
+  margin: 4px 0 20px 0;
+}
+
+.order-id-highlight strong {
+  color: #233f75;
+}
+
+.success-summary-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.summary-row span {
+  color: #64748b;
+}
+
+.summary-row strong {
+  color: #233f75;
+}
+
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-pill--confirmed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.success-hint {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+/* ================= Страница бронирования (BookingPage) ================= */
+.booking-page-container {
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.booking-page-card {
+  background: #ffffff;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 600px;
+  padding: 36px 32px;
+  box-shadow: 0 4px 24px rgba(32, 58, 96, 0.08);
+}
+
+.booking-header h1 {
+  font-size: 26px;
+  margin: 6px 0 8px 0;
+  color: #233f75;
+}
+
+.booking-header p {
+  color: #64748b;
+  margin: 0 0 24px 0;
+  font-size: 14px;
+}
+
+.booking-page-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* ================= Личный кабинет (MyTripsPage) ================= */
+.my-trips-page {
+  padding: 16px 0 40px 0;
+}
+
+.my-trips-container {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.my-trips-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.my-trips-header h1 {
+  margin: 4px 0 6px 0;
+  font-size: 28px;
+  color: #233f75;
+}
+
+.my-trips-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.trips-tabs {
+  display: flex;
+  gap: 10px;
+  background: #e2e8f0;
+  padding: 5px;
+  border-radius: 16px;
+  margin-bottom: 24px;
+  width: fit-content;
+}
+
+.tab-btn {
+  padding: 8px 18px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-btn--active {
+  background: #ffffff;
+  color: #233f75;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.trips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.trip-order-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(32, 58, 96, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.trip-order-card:hover {
+  box-shadow: 0 6px 24px rgba(32, 58, 96, 0.1);
+}
+
+.trip-order-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.order-number strong {
+  font-size: 17px;
+  color: #233f75;
+}
+
+.order-number small {
+  display: block;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.status-badge {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-badge--confirmed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-badge--pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge--completed {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.status-badge--cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.trip-order-card__route {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8fafc;
+  padding: 14px 18px;
+  border-radius: 14px;
+}
+
+.trip-order-card__details {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 14px;
+  padding: 0 4px;
+}
+
+.detail-item small {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.detail-item strong {
+  font-size: 15px;
+  color: #233f75;
+}
+
+.trip-order-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 14px;
+}
+
+/* Модалка отмены с возвратом средств */
+.cancel-refund-info {
+  margin-bottom: 20px;
+  color: #475569;
+  font-size: 14px;
+}
+
+.refund-card {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-top: 14px;
+}
+
+.refund-card__title {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1d4ed8;
+  margin-bottom: 6px;
+}
+
+.refund-card__calc {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  color: #1e3a8a;
+}
+
+.refund-card small {
+  color: #3b82f6;
+  font-size: 12px;
+  display: block;
+}
+
+.full-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.detail-row span {
+  color: #64748b;
+}
+
+/* ================= Диспетчерская панель (DispatcherPage - ФТ10) ================= */
+.dispatcher-page {
+  padding: 16px 0 40px 0;
+}
+
+.dispatcher-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.dispatcher-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.dispatcher-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.demo-badge-pill {
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #fde68a;
+}
+
+.dispatcher-header h1 {
+  margin: 6px 0 8px 0;
+  font-size: 30px;
+  color: #233f75;
+}
+
+.dispatcher-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 15px;
+}
+
+.dispatcher-time-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #475569;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: pulse-dot 1.5s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Сетка KPI */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.kpi-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 20px 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  box-shadow: 0 4px 18px rgba(32, 58, 96, 0.06);
+}
+
+.kpi-card__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.kpi-card__icon--blue { background: #eff6ff; }
+.kpi-card__icon--green { background: #f0fdf4; }
+.kpi-card__icon--orange { background: #fff7ed; }
+.kpi-card__icon--red { background: #fef2f2; }
+.kpi-card__icon--yellow { background: #fefce8; }
+
+.kpi-card__body small {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.kpi-card__body strong {
+  display: block;
+  font-size: 24px;
+  color: #233f75;
+  margin-bottom: 6px;
+}
+
+.kpi-trend {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.kpi-trend--up { color: #16a34a; }
+.kpi-trend--neutral { color: #2563eb; }
+.kpi-trend--sub { color: #64748b; }
+
+/* Графики */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+}
+
+.charts-grid__sub {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dashboard-chart-card {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 4px 18px rgba(32, 58, 96, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chart-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #233f75;
+}
+
+.chart-header p {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legend-color--peak { background: #233f75; }
+.legend-color--standard { background: #93c5fd; }
+.legend-color--plan { background: #cbd5e1; }
+.legend-color--fact { background: #ffda44; }
+
+/* Почасовой график спроса (DemandChart) */
+.demand-bars-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 220px;
+  padding-top: 24px;
+  overflow-x: auto;
+}
+
+.demand-bar-col {
+  flex: 1;
+  min-width: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.demand-bar-val {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.demand-bar-track {
+  width: 100%;
+  max-width: 28px;
+  flex: 1;
+  background: #f1f5f9;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.demand-bar-fill {
+  width: 100%;
+  background: #93c5fd;
+  border-radius: 6px 6px 0 0;
+  transition: height 0.3s ease;
+}
+
+.demand-bar-fill--peak {
+  background: #233f75;
+}
+
+.demand-bar-label {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 6px;
+  white-space: nowrap;
+}
+
+/* График отмен предзаказов (CancellationChart) */
+.cancellation-progress-stacked {
+  display: flex;
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f1f5f9;
+}
+
+.stacked-slice {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.cancellation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cancellation-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cancellation-item__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #233f75;
+}
+
+.category-marker {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.cat-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.refund-rule-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  padding-left: 18px;
+}
+
+/* Загрузка по зонам (LoadChart) */
+.zones-load-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.zone-load-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.zone-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.zone-info strong {
+  color: #233f75;
+}
+
+.zone-info small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.zone-bars-comparison {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.bar-tag {
+  width: 38px;
+  color: #64748b;
+}
+
+.bar-track {
+  flex: 1;
+  height: 12px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.bar-fill--plan { background: #cbd5e1; }
+.bar-fill--fact { background: #ffda44; }
+
+.bar-percent {
+  width: 44px;
+  text-align: right;
+  color: #233f75;
+}
+
+/* Оперативная таблица рейсов */
+.table-card {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 4px 18px rgba(32, 58, 96, 0.06);
+}
+
+.table-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.table-card__header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #233f75;
+}
+
+.table-card__header p {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.table-filters {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-select {
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #233f75;
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.trips-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.trips-table th {
+  padding: 12px 14px;
+  border-bottom: 2px solid #e2e8f0;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.trips-table td {
+  padding: 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.bus-number-badge {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-family: monospace;
+  font-size: 12px;
+  color: #1e293b;
+}
+
+.route-cell {
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.load-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.load-mini-bar {
+  width: 100%;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.load-mini-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+@media (max-width: 900px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+  .trip-order-card__details {
+    grid-template-columns: 1fr;
+  }
+  .payment-methods {
+    grid-template-columns: 1fr;
+  }
+}
