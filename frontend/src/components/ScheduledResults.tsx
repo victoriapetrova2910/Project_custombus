@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { searchScheduledTrips, type TripSearchItem } from "../api/trips";
+import { isPointWithinCoverage } from "../mapCoverage";
 import SearchStatus from "./SearchStatus";
 
 type Props = {
@@ -39,7 +40,11 @@ export default function ScheduledResults({
       seats_count: passengers,
     }, controller.signal).then(
       ({ items }) => {
-        if (!controller.signal.aborted) setResult({ items });
+        if (!controller.signal.aborted) {
+          setResult({ items: items.filter((trip) =>
+            isPointWithinCoverage(trip.from_stop) && isPointWithinCoverage(trip.to_stop)
+          ) });
+        }
       },
       (error: unknown) => {
         if (controller.signal.aborted) return;

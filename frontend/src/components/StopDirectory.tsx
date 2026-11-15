@@ -14,16 +14,15 @@ function distanceSquared(point: Coordinates, origin: Coordinates) {
 }
 
 export default function StopDirectory({
-  openInitially, stops, loaded, failed, center, onLocate,
+  stops, loaded, failed, center, onLocate,
 }: {
-  openInitially?: boolean;
   stops: ServiceStop[];
   loaded: boolean;
   failed: boolean;
   center: Coordinates;
   onLocate: (point: AddressPoint, stopId?: number) => void;
 }) {
-  const [open, setOpen] = useState(openInitially ?? false);
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(pageSize);
   const [addresses, setAddresses] = useState<AddressPoint[]>([]);

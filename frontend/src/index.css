@@ -869,7 +869,7 @@ a {
   width: 56px;
   height: 56px;
   object-fit: contain;
-  border-radius: 14px;
+  border-radius: 50%;
 }
 
 .brand__text {
@@ -2845,13 +2845,6 @@ a {
   }
 }
 
-.route-map-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-}
-
-.route-map-actions button,
 .map-picker button {
   border: 1px solid #c7d5e5;
   border-radius: 8px;
@@ -2958,9 +2951,9 @@ a {
 }
 
 .service-stop-marker--reference::before {
-  width: 7px;
-  height: 7px;
-  background: #64748b;
+  width: 9px;
+  height: 9px;
+  background: #58b9eb;
 }
 
 .passenger-help {
@@ -3106,6 +3099,62 @@ a {
   right: 68px;
 }
 .workspace--map-overlay .maplibregl-ctrl-top-right { top: 110px; right: 12px; }
+
+.service-map .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
+  display: grid;
+  gap: 8px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.service-map .maplibregl-ctrl-top-right .maplibregl-ctrl-group :is(.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out) {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #dce5f1;
+  border-radius: 14px;
+  background: #fff;
+  color: #233f75;
+  box-shadow: 0 3px 12px #203a601f;
+  transition: background-color 150ms, box-shadow 150ms;
+}
+
+.service-map .maplibregl-ctrl-group :is(.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out):enabled:hover {
+  background-color: #edf4ff;
+  box-shadow: 0 4px 14px #203a6033;
+}
+
+.service-map .maplibregl-ctrl-group :is(.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out):focus-visible {
+  outline: 2px solid #2864b8;
+  outline-offset: 2px;
+}
+
+.service-map .maplibregl-ctrl-group :is(.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out):disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+.service-map .maplibregl-ctrl-group :is(.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out) .maplibregl-ctrl-icon {
+  display: grid;
+  place-items: center;
+  background: none;
+}
+
+.service-map :is(.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out) .maplibregl-ctrl-icon::before,
+.service-map .maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon::after {
+  content: "";
+  grid-area: 1 / 1;
+  width: 16px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.service-map .maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon::after {
+  transform: rotate(90deg);
+}
+
 .workspace--map-overlay .map-label {
   inset: auto 44px 18px auto;
   max-width: min(350px, calc(100% - 64px));
@@ -3114,7 +3163,6 @@ a {
   inset: auto 18px 36px auto;
   width: min(380px, calc(100% - 36px));
 }
-.route-map-actions button:disabled { opacity: .55; cursor: default; }
 
 @media (max-width: 859px) {
   .workspace.workspace--map-overlay {
@@ -3192,4 +3240,69 @@ a {
   display: block;
   margin-top: 3px;
   color: #526784;
+}
+
+.address-input {
+  display: grid;
+  flex: 1;
+  gap: 5px;
+  min-width: 0;
+  padding: 8px 0;
+}
+
+.address-input__suggestions {
+  display: grid;
+  gap: 4px;
+  max-height: 180px;
+  overflow: auto;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid #dce5f1;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.address-input__suggestions button {
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+  background: #fff;
+  color: #233f75;
+  cursor: pointer;
+}
+
+.address-input__suggestions button:hover,
+.address-input__suggestions [aria-selected="true"] button {
+  background: #edf4ff;
+}
+
+.address-input__status {
+  color: #526784;
+  font-size: 12px;
+}
+
+.route-map-icon {
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: #233f75;
+  background: #fff;
+  border: 1px solid #dce5f1;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.route-map-icon:hover {
+  background: #edf4ff;
+}
+
+.route-map-icon:focus-visible {
+  outline: 2px solid #2864b8;
+  outline-offset: 2px;
 }

@@ -1,4 +1,4 @@
-import { isWithinCoverage } from "../mapCoverage";
+import { isPointWithinCoverage } from "../mapCoverage";
 import { FARE_PER_PASSENGER } from "../fare";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -57,7 +57,17 @@ export default function SearchPage() {
   const usesDemoSearch = mode === "now" || flexible;
   const departureTime = date && time ? new Date(date + "T" + time + "+03:00") : null;
 
-  const routeKey = fromPoint && toPoint ? fromPoint + ";" + toPoint : undefined;
+  const endpoints = useMemo(() => {
+    if (!fromPoint || !toPoint) return undefined;
+    const [start, end] = [[fromPoint, from], [toPoint, to]].map(([point, label]) => {
+      const [latitude, longitude] = point.split(",").map((value) => value.trim() ? Number(value) : NaN);
+      return { latitude, longitude, label };
+    });
+    return isPointWithinCoverage(start) && isPointWithinCoverage(end) ? { start, end } : undefined;
+  }, [fromPoint, toPoint, from, to]);
+  const pointsInZone = Boolean(endpoints);
+  const hasCoordinates = Boolean(fromPoint || toPoint);
+  const routeKey = pointsInZone && fromPoint !== toPoint ? fromPoint + ";" + toPoint : undefined;
   const [driveTime, setDriveTime] = useState<{ key: string; attempt: number; result: DrivingResult }>();
   useEffect(() => {
     if (!routeKey) return;
@@ -68,19 +78,10 @@ export default function SearchPage() {
     return () => controller.abort();
   }, [routeKey, attempt]);
   const drivingResult = driveTime?.key === routeKey && driveTime?.attempt === attempt ? driveTime?.result : undefined;
-  const mapJourney = useMemo(() => {
-    if (activeRoute || !fromPoint || !toPoint || fromPoint === toPoint) return undefined;
-    const endpoints = [[fromPoint, from], [toPoint, to]].map(([point, label]) => {
-      const [latitude, longitude] = point.split(",").map((value) => value.trim() ? Number(value) : NaN);
-      return { latitude, longitude, label };
-    });
-    if (endpoints.some(({ latitude, longitude }) =>
-      !Number.isFinite(latitude) || Math.abs(latitude) > 90 ||
-      !Number.isFinite(longitude) || Math.abs(longitude) > 180
-    )) return undefined;
-    const [start, end] = endpoints;
-    return { start, end, geometry: drivingResult?.state === "found" ? drivingResult.geometry : undefined };
-  }, [activeRoute, fromPoint, toPoint, from, to, drivingResult]);
+  const mapJourney = useMemo(() => endpoints ? {
+    ...endpoints,
+    geometry: drivingResult?.state === "found" ? drivingResult.geometry : undefined,
+  } : undefined, [endpoints, drivingResult]);
   const ride: RidePreview = {
     ...demoRide,
     rideMinutes: drivingResult?.state === "found" ? drivingResult.minutes : null,
@@ -100,10 +101,8 @@ export default function SearchPage() {
         ? "Координаты точек не переданы. Выберите маршрут на карте."
         : undefined;
 
-  const addressInZone = (!fromAddress || (mapJourney && isWithinCoverage(mapJourney.start.longitude, mapJourney.start.latitude))) &&
-    (!toAddress || (mapJourney && isWithinCoverage(mapJourney.end.longitude, mapJourney.end.latitude)));
   const validRoute = Boolean(
-    addressInZone &&
+    (!hasCoordinates || pointsInZone) &&
     from &&
       to &&
       (mode === "now"
@@ -257,14 +256,15 @@ export default function SearchPage() {
           </>
         ) : (
           <div className="demo-warning">
-            Параметры поездки не заполнены. Вернитесь на главную страницу
-            и выберите маршрут.
+            {hasCoordinates && !pointsInZone
+              ? "Выберите точки отправления и назначения внутри зоны обслуживания."
+              : "Параметры поездки не заполнены. Вернитесь на главную страницу и выберите маршрут."}
           </div>
         )}
       </section>
 
       <div className="workspace__map workspace__map--results">
-        <ServiceMap route={activeRoute} journey={mapJourney} />
+        <ServiceMap route={activeRoute} journey={validRoute && !activeRoute ? mapJourney : undefined} />
       </div>
     </main>
   );
