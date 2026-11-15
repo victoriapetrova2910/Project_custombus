@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
+  adminProfile,
   demoCode,
+  isDemoAdmin,
   findProfileByPhone,
   normalizePhone,
   readAuthIntent,
@@ -25,7 +27,8 @@ export default function AccountPage() {
 
   function finish(profile: DemoProfile) {
     setProfile(profile);
-    navigate(intent.from, {
+    const destination = isDemoAdmin(profile) && intent.from === "/my-trips" ? "/dispatcher" : intent.from;
+    navigate(destination, {
       replace: true,
       state: { resumeBooking: intent.resumeBooking },
     });
@@ -103,7 +106,7 @@ export default function AccountPage() {
                 name="phone"
                 type="tel"
                 autoComplete="off"
-                placeholder="+7 000 000-00-02"
+                placeholder="+7 000 000-00-03"
                 value={phone}
                 onChange={(event) => {
                   setPhone(event.target.value);
@@ -159,6 +162,9 @@ export default function AccountPage() {
         >
           {step === "phone" ? "Войти как демо-пассажир" : "Изменить номер"}
         </button>
+        {step === "phone" && (
+          <p className="account-note">Демо-аккаунт диспетчера: {adminProfile.phone}. Для входа используйте код {demoCode}.</p>
+        )}
       </section>
     </main>
   );

@@ -1,10 +1,11 @@
 
 import { lazy, Suspense } from "react";
+import type { ComponentProps } from "react";
 
 // Загружаем компонент карты отдельным модулем.
 const ServiceMap = lazy(() => import("./ServiceMap"));
 
-export default function LazyServiceMap() {
+export default function LazyServiceMap(props: ComponentProps<typeof ServiceMap>) {
   return (
     <Suspense
       fallback={
@@ -16,7 +17,7 @@ export default function LazyServiceMap() {
         </div>
       }
     >
-      <ServiceMap />
+      <ServiceMap {...props} />
     </Suspense>
   );
 }

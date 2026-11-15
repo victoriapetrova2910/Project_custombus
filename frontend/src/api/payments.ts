@@ -1,3 +1,4 @@
+import { FARE_PER_PASSENGER } from "../fare";
 /**
  * API модуль оплаты (Человек 4)
  * Обеспечивает интеграцию с mock-оплатой бэкенда:
@@ -68,7 +69,7 @@ export async function payPreorderDirect(
   return {
     id: Math.floor(Math.random() * 10000) + 1,
     preorder_id: preorderId,
-    amount: 150,
+    amount: FARE_PER_PASSENGER,
     status: "paid",
   };
 }

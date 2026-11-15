@@ -1,5 +1,6 @@
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.preorders import router as preorders_router
 from app.api.preorders import my_router
@@ -14,6 +15,13 @@ app = FastAPI(
     title="По пути",
     description="Сервис предварительного бронирования поездок",
     version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"http://(?:localhost|127\.0\.0\.1):(?:5173|4173)",
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 app.include_router(preorders_router)

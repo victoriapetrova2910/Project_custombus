@@ -3,6 +3,7 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.fare import FARE_PER_PASSENGER
 from app.models import Payment, Preorder, Trip
 from app.schemas.payment import PaymentResponse
 from app.schemas.preorder import PreorderCreate, PreorderResponse
@@ -106,12 +107,17 @@ def pay_preorder(
             detail="Бронирование уже оплачено",
         )
 
-    payment = Payment(
-        preorder_id=preorder.id,
-        amount=500,
-        status="pending",
-    )
+    pending_payment = db.query(Payment.id).filter(
+        Payment.preorder_id == preorder.id,
+        Payment.status == "pending",
+    ).first()
+    if pending_payment is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Подтвердите существующий ожидающий платёж",
+        )
 
+    payment = Payment(preorder_id=preorder.id, amount=FARE_PER_PASSENGER * preorder.seats_count, status="pending")
     db.add(payment)
     db.flush()
 

@@ -1,3 +1,4 @@
+import { FARE_PER_PASSENGER } from "../fare";
 /**
  * API модуль управления предзаказами (Человек 4)
  * Поддерживает работу с реальным FastAPI бэкендом
@@ -75,7 +76,7 @@ function getDefaultDemoPreorders(): Preorder[] {
       seats_count: 2,
       status: "confirmed",
       created_at: new Date(now.getTime() - 15 * 60 * 1000).toISOString(),
-      price_per_seat: 150,
+      price_per_seat: FARE_PER_PASSENGER,
       total_price: 300,
       paid_at: new Date(now.getTime() - 14 * 60 * 1000).toISOString(),
     },
@@ -89,8 +90,8 @@ function getDefaultDemoPreorders(): Preorder[] {
       seats_count: 1,
       status: "completed",
       created_at: new Date(pastDate.getTime() - 3 * 60 * 60 * 1000).toISOString(),
-      price_per_seat: 150,
-      total_price: 150,
+      price_per_seat: FARE_PER_PASSENGER,
+      total_price: FARE_PER_PASSENGER,
       paid_at: new Date(pastDate.getTime() - 3 * 60 * 60 * 1000).toISOString(),
     },
   ];
@@ -121,8 +122,8 @@ export async function createPreorder(
       serverPreorder.departure_point = data.departure_point || serverPreorder.departure_point;
       serverPreorder.destination_point = data.destination_point || serverPreorder.destination_point;
       serverPreorder.departure_time = data.departure_time || serverPreorder.departure_time;
-      serverPreorder.price_per_seat = data.price_per_seat || 150;
-      serverPreorder.total_price = (data.price_per_seat || 150) * data.seats_count;
+      serverPreorder.price_per_seat = data.price_per_seat || FARE_PER_PASSENGER;
+      serverPreorder.total_price = (data.price_per_seat || FARE_PER_PASSENGER) * data.seats_count;
 
       const list = getLocalPreorders();
       saveLocalPreorders([serverPreorder, ...list]);
@@ -158,8 +159,8 @@ export async function createPreorder(
     seats_count: data.seats_count,
     status: "pending",
     created_at: new Date().toISOString(),
-    price_per_seat: data.price_per_seat || 150,
-    total_price: (data.price_per_seat || 150) * data.seats_count,
+    price_per_seat: data.price_per_seat || FARE_PER_PASSENGER,
+    total_price: (data.price_per_seat || FARE_PER_PASSENGER) * data.seats_count,
   };
 
   const list = getLocalPreorders();

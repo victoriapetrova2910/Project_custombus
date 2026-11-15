@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.database import SessionLocal
 from app.models import Stop, Trip, Vehicle
 from app.schemas.trip import TripCreate, TripStopCreate
-from app.services.trips import create_trip
+from app.services.trips import MOSCOW_TIME, create_trip
 
 VEHICLES = [
     ("А101АА77", "ГАЗель City", 16),
@@ -53,7 +53,7 @@ def main() -> None:
             vehicles.append(vehicle)
         db.commit()
 
-        day = datetime.combine(datetime.now().date() + timedelta(days=1), FIRST_DEPARTURE)
+        day = datetime.combine(datetime.now(MOSCOW_TIME).date() + timedelta(days=1), FIRST_DEPARTURE)
         created = []
         for direction in (1, -1):
             line = list(zip(stops, LINE))[::direction]
@@ -75,7 +75,7 @@ def main() -> None:
                 created.append(trip.id)
 
         print(f"Создано автобусов: {len(vehicles)}, рейсов: {len(created)} (id {created[0]}–{created[-1]})")
-        print(f"Дата рейсов: {day.date()}, остановки: " + " → ".join(n for n, _, _ in LINE))
+        print(f"Дата рейсов: {day.date()}, остановки: " + " -> ".join(n for n, _, _ in LINE))
 
 
 if __name__ == "__main__":

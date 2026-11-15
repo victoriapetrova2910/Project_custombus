@@ -1,11 +1,13 @@
 
+import { AVERAGE_BUS_SPEED_KMH } from "../api/driveTime";
 import BusLogo from "./BusLogo";
 
 export type RideMode = "now" | "scheduled";
 
 export type RidePreview = {
   pickupMinutes: number;
-  rideMinutes: number;
+  rideMinutes: number | null;
+  estimatingDuration?: boolean;
   availableSeats: number;
   pricePerSeat: number;
 };
@@ -58,8 +60,8 @@ export default function TripCard({
         </div>
 
         <div className="ride-preview__metric">
-          <span>В пути</span>
-          <strong>~{ride.rideMinutes} мин</strong>
+          <span>В пути по дорогам</span>
+          <strong>{ride.estimatingDuration ? "Считаем…" : ride.rideMinutes === null ? "Нет оценки" : "≈ " + ride.rideMinutes + " мин"}</strong>
         </div>
 
         <div className="ride-preview__metric">
@@ -90,9 +92,7 @@ export default function TripCard({
       </button>
 
       <p className="ride-preview__note">
-        {onBook
-          ? "Бронирование подтверждается после оплаты. Места резервируются мгновенно."
-          : "Время подачи, длительность, места и стоимость демонстрационные. Реальный поиск пока не подключён."}
+        Оценка рассчитана по длине маршрута и средней скорости {AVERAGE_BUS_SPEED_KMH} км/ч. Пробки, посадка и дополнительные заезды могут изменить время. Подача и места показаны на демоданных.
       </p>
     </article>
   );

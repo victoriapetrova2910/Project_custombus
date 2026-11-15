@@ -2,6 +2,7 @@ export type DemoProfile = {
   id: number;
   name: string;
   phone?: string;
+  role?: "admin";
 };
 
 export const sampleProfile: DemoProfile = {
@@ -9,6 +10,17 @@ export const sampleProfile: DemoProfile = {
   name: "Демо-пассажир",
   phone: "+70000000001",
 };
+
+export const adminProfile: DemoProfile = {
+  id: 900000001,
+  name: "Демо-диспетчер",
+  phone: "+70000000002",
+  role: "admin",
+};
+
+export function isDemoAdmin(profile: DemoProfile | null): boolean {
+  return profile?.id === adminProfile.id && profile.role === "admin";
+}
 
 export const demoCode = "1234";
 
@@ -24,8 +36,9 @@ function readProfiles(): DemoProfile[] {
           (profile) =>
             profile &&
             Number.isSafeInteger(profile.id) &&
+            profile.id !== adminProfile.id &&
             typeof profile.name === "string"
-        )
+        ).map(({ id, name, phone }) => ({ id, name, phone }))
       : [];
   } catch {
     return [];
@@ -42,7 +55,7 @@ export function normalizePhone(value: string): string {
 }
 
 export function findProfileByPhone(phone: string): DemoProfile | undefined {
-  return [sampleProfile, ...readProfiles()].find(
+  return [sampleProfile, adminProfile, ...readProfiles()].find(
     (profile) => profile.phone === phone
   );
 }
@@ -71,7 +84,7 @@ export function readSession(): DemoProfile | null {
   try {
     const id = Number(sessionStorage.getItem(sessionKey));
 
-    return [sampleProfile, ...readProfiles()].find(
+    return [sampleProfile, adminProfile, ...readProfiles()].find(
       (profile) => profile.id === id
     ) ?? null;
   } catch {
@@ -108,7 +121,7 @@ export function readAuthIntent(state: unknown): AuthIntent {
     return fallback;
   }
 
-  if (!/^\/(my-trips|search|booking)(\?|$)/.test(state.from)) {
+  if (!/^\/(my-trips|search|booking|dispatcher)(\?|$)/.test(state.from)) {
     return fallback;
   }
 

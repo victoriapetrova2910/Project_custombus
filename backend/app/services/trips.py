@@ -1,9 +1,11 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+
+from app.services.fare import FARE_PER_PASSENGER
 from typing import List, Optional, Tuple
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, aliased, joinedload, selectinload
+from sqlalchemy.orm import Session, aliased, selectinload
 
 from app.models import Stop, Trip, TripStop, Vehicle
 from app.schemas.stop import StopShort
@@ -18,6 +20,7 @@ from app.schemas.trip import (
 
 MIN_LEAD_TIME = timedelta(minutes=30)
 MAX_LEAD_TIME = timedelta(hours=48)
+MOSCOW_TIME = timezone(timedelta(hours=3))
 
 
 class TripServiceError(Exception):
@@ -29,7 +32,7 @@ class TripServiceError(Exception):
 
 
 def _now() -> datetime:
-    return datetime.now()
+    return datetime.now(MOSCOW_TIME).replace(tzinfo=None)
 
 
 def _segment_query(from_stop_id: int, to_stop_id: int):
@@ -153,8 +156,10 @@ def list_trips(
     if from_stop_id is not None:
         query, a, _ = _segment_query(from_stop_id, to_stop_id)
         query = query.with_only_columns(Trip)
+        departure_time = a.departure_time
     else:
         query = select(Trip)
+        departure_time = Trip.departure_time
 
     if status:
         query = query.where(Trip.status == status)
@@ -162,16 +167,16 @@ def list_trips(
         query = query.where(
             Trip.status == "scheduled",
             Trip.available_seats > 0,
-            Trip.departure_time >= now,
+            departure_time >= now,
         )
     if on_date is not None:
         day_start = datetime.combine(on_date, datetime.min.time())
         query = query.where(
-            Trip.departure_time >= day_start,
-            Trip.departure_time < day_start + timedelta(days=1),
+            departure_time >= day_start,
+            departure_time < day_start + timedelta(days=1),
         )
 
-    query = query.order_by(Trip.departure_time, Trip.id).limit(limit).offset(offset)
+    query = query.order_by(departure_time, Trip.id).limit(limit).offset(offset)
     return list(db.execute(query).scalars().all())
 
 
@@ -191,14 +196,14 @@ def get_trip_detail(db: Session, trip_id: int) -> Optional[TripDetailResponse]:
             stop=StopShort.model_validate(ts.stop),
             arrival_time=ts.arrival_time,
             departure_time=ts.departure_time,
-            fare_from_start=ts.fare_from_start,
+            fare_from_start=Decimal(0) if ts.stop_sequence == 1 else FARE_PER_PASSENGER,
         )
         for ts in trip.trip_stops
     ]
 
     detail = TripDetailResponse.model_validate(trip)
     detail.stops = stops
-    detail.total_fare = stops[-1].fare_from_start if stops else None
+    detail.total_fare = FARE_PER_PASSENGER if len(stops) > 1 else None
     return detail
 
 
@@ -231,7 +236,7 @@ def search_trips(
 
     window = timedelta(minutes=request.time_window_minutes)
     earliest = max(requested - window, now + MIN_LEAD_TIME)
-    latest = requested + window
+    latest = min(requested + window, now + MAX_LEAD_TIME)
 
     query, a, b = _segment_query(request.from_stop_id, request.to_stop_id)
     query = (
@@ -252,7 +257,7 @@ def search_trips(
 
     items = []
     for trip, start, end in rows:
-        price = (end.fare_from_start - start.fare_from_start).quantize(Decimal("0.01"))
+        price = FARE_PER_PASSENGER
         items.append(
             TripSearchItem(
                 trip_id=trip.id,

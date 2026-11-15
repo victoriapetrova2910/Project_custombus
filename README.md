@@ -109,8 +109,8 @@ Backend — FastAPI + SQLAlchemy
 
 ```text
 Project_custombus/
-├── algorithm/             # Группировка заказов и назначение транспорта
 ├── backend/               # FastAPI, модели, схемы, сервисы, тесты
+│   └── algorithm/         # Группировка заказов и назначение транспорта
 ├── data/                  # Исходные и обработанные данные остановок/зон
 ├── docs/                  # Исследования, требования, проектные материалы
 ├── frontend/              # React-приложение
@@ -160,6 +160,8 @@ Frontend можно запустить **без backend**: сценарий по
 cd backend
 pip install -r requirements.txt
 # Создайте .env по образцу .env.example и настройте PostgreSQL
+python -m alembic upgrade head
+python import_stops.py
 python -m uvicorn app.main:app --reload
 ```
 
@@ -192,7 +194,7 @@ python -m uvicorn app.main:app --reload
 | `POST` | `/api/v1/payments/{payment_id}/confirm` | Подтверждение платежа |
 | `POST` | `/api/v1/payments/{payment_id}/fail` | Фиксация ошибки оплаты |
 
-**Планируемые / ожидающие интеграции API:**
+**API поиска и справочника остановок:**
 
 | Метод | Путь | Назначение |
 |:--:|:--|:--|
@@ -201,8 +203,7 @@ python -m uvicorn app.main:app --reload
 | `GET` | `/api/v1/stops/{id}` | Информация об остановке |
 | `POST` | `/api/v1/preorders/search` | Поиск поездок для предзаказа |
 
-> [!WARNING]
-> Путь `/api/v1/preorders/search` указан как **планируемый контракт**. Frontend пока не отправляет на него рабочие запросы. Отдельная логика нужна и для режима **«Поехать сейчас»**.
+В режиме «Запланировать» форма загружает остановки и показывает подходящие рейсы из API. Время вводится по Москве. Для локальной проверки после импорта остановок можно запустить `python seed_demo.py`: скрипт создаёт рейсы на завтра с 07:00 до 09:30. Режим «Поехать сейчас» и оформление поездок работают в демонстрационном режиме.
 
 ---
 ### Алгоритмы

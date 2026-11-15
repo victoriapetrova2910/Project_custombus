@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
+import { isDemoAdmin } from "../account/demoProfiles";
 import { useDemoAccount } from "../account/useDemoAccount";
 
 export default function Header() {
@@ -87,16 +88,25 @@ export default function Header() {
                 <span aria-hidden="true">›</span>
               </NavLink>
             </li>
+            <li>
+              <NavLink to="/help" onClick={() => setOpen(false)}>
+                Справка и правила
+                <span aria-hidden="true">›</span>
+              </NavLink>
+            </li>
           </ul>
         </div>
 
-        <NavLink
-          to="/dispatcher"
-          className="site-nav__item"
-          onClick={() => setOpen(false)}
-        >
-          Диспетчер
-        </NavLink>
+        {isDemoAdmin(profile) && (
+          <NavLink to="/dispatcher" className="site-nav__item" onClick={() => setOpen(false)}>
+            Диспетчерская
+          </NavLink>
+        )}
+        {!profile && (
+          <NavLink to="/login" className="site-nav__item" onClick={() => setOpen(false)}>
+            Войти
+          </NavLink>
+        )}
 
         {profile && (
           <NavLink
