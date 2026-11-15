@@ -1,3 +1,4 @@
+import { FARE_PER_PASSENGER } from "../fare";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDemoAccount } from "../account/useDemoAccount";
 import BookingModal from "../components/BookingModal";
@@ -29,7 +30,7 @@ export default function BookingPage() {
         to: params.get("to") || "Коммунарка",
         departureTime: date && time ? `${date}T${time}:00` : undefined,
         pickupMinutes: 12,
-        pricePerSeat: positiveInteger(params.get("price"), 150),
+        pricePerSeat: FARE_PER_PASSENGER,
         availableSeats: seats,
         passengers,
         mode: date && time ? "scheduled" : "now",

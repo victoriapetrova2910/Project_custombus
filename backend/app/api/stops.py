@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -18,6 +18,7 @@ def list_stops(
     service_active: Optional[bool] = Query(
         None, description="Только остановки в действующей зоне «По пути»"
     ),
+    scope: Optional[Literal["scheduled", "map"]] = Query(None),
     is_drt_hub: Optional[bool] = Query(None, description="Только ключевые хабы"),
     lat: Optional[float] = Query(None, ge=-90, le=90),
     lon: Optional[float] = Query(None, ge=-180, le=180),
@@ -46,6 +47,7 @@ def list_stops(
         subzone=subzone,
         service_active=service_active,
         is_drt_hub=is_drt_hub,
+        scope=scope,
         lat=lat,
         lon=lon,
         radius_m=radius_m,

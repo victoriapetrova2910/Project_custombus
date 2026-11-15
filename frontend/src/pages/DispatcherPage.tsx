@@ -40,16 +40,6 @@ const initialDemoTrips: DispatcherTrip[] = [
     status: "completed",
   },
   {
-    id: 3,
-    busNumber: "C 890 OP 77",
-    zone: "Троицк",
-    route: "Сиреневый бульвар → м. Тёплый Стан",
-    departureTime: "09:10",
-    totalSeats: 18,
-    occupiedSeats: 13,
-    status: "active",
-  },
-  {
     id: 4,
     busNumber: "E 123 TX 77",
     zone: "Сколково",
@@ -67,16 +57,6 @@ const initialDemoTrips: DispatcherTrip[] = [
     departureTime: "10:00",
     totalSeats: 16,
     occupiedSeats: 10,
-    status: "scheduled",
-  },
-  {
-    id: 6,
-    busNumber: "H 789 OP 77",
-    zone: "Троицк",
-    route: "Микрорайон «В» → Троицкий лес",
-    departureTime: "10:30",
-    totalSeats: 18,
-    occupiedSeats: 8,
     status: "scheduled",
   },
 ];
@@ -141,14 +121,6 @@ const demoZoneLoads: ZoneLoad[] = [
     occupiedSeats: 108,
   },
   {
-    zone: "Троицк",
-    plannedPercent: 70,
-    actualPercent: 76,
-    activeVehicles: 5,
-    totalSeats: 90,
-    occupiedSeats: 68,
-  },
-  {
     zone: "Сколково",
     plannedPercent: 65,
     actualPercent: 69,
@@ -158,7 +130,7 @@ const demoZoneLoads: ZoneLoad[] = [
   },
 ];
 
-export default function DispatcherPage() {
+export default function DispatcherPage({ onExit }: { onExit: () => void }) {
   const [selectedZone, setSelectedZone] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
 
@@ -179,25 +151,20 @@ export default function DispatcherPage() {
       <div className="dispatcher-container">
         <header className="dispatcher-header">
           <div>
-            <h1>Панель диспетчера</h1>
-            <p>Рейсы, спрос и загрузка микроавтобусов</p>
+            <h1>Диспетчерская смена</h1>
+            <p>Рейсы и свободные места</p>
           </div>
-          <span className="dispatcher-demo">Демонстрационные данные</span>
+          <div className="shift-actions">
+            <span className="dispatcher-demo">Демонстрационная смена</span>
+            <button className="btn btn--secondary" type="button" onClick={onExit}>Выйти из аккаунта</button>
+          </div>
         </header>
 
-        <BoardingCheck />
-
-        <section className="dispatcher-section" aria-label="Сводка">
-          <KPI
-            data={{
-              totalPreorders: 342,
-              completedTrips: 298,
-              cancelledTrips: 33,
-              noShowCount: 11,
-              avgFleetLoad: 78,
-            }}
-          />
-        </section>
+        <nav className="shift-nav" aria-label="Разделы рабочей смены">
+          <a href="#trips-heading">Рейсы</a>
+          <a href="#shift-boarding">Проверка посадки</a>
+          <a href="#analytics-heading">Аналитика</a>
+        </nav>
 
         <section className="dispatcher-section table-card" aria-labelledby="trips-heading">
           <div className="table-card__header">
@@ -217,7 +184,6 @@ export default function DispatcherPage() {
               >
                 <option value="all">Все зоны</option>
                 <option value="Коммунарка">Коммунарка</option>
-                <option value="Троицк">Троицк</option>
                 <option value="Сколково">Сколково</option>
               </select>
 
@@ -289,14 +255,20 @@ export default function DispatcherPage() {
           </div>
         </section>
 
-        <section className="dispatcher-section" aria-labelledby="analytics-heading">
-          <h2 className="dispatcher-section__title" id="analytics-heading">Аналитика</h2>
+        <details className="shift-details" id="shift-boarding">
+          <summary>Проверка посадки по QR-коду</summary>
+          <BoardingCheck />
+        </details>
+
+        <details className="shift-details" id="analytics-heading">
+          <summary>Аналитика смены</summary>
+          <KPI data={{ totalPreorders: 342, completedTrips: 298, cancelledTrips: 33, noShowCount: 11, avgFleetLoad: 78 }} />
           <div className="charts-grid">
             <DemandChart data={demoDemandData} />
             <LoadChart zones={demoZoneLoads} />
             <CancellationChart categories={demoCancellationCategories} />
           </div>
-        </section>
+        </details>
       </div>
     </main>
   );

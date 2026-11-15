@@ -1,3 +1,4 @@
+import { FARE_PER_PASSENGER } from "../fare";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Preorder } from "../api/preorders";
@@ -30,7 +31,7 @@ const dateTime = new Intl.DateTimeFormat("ru-RU", {
 });
 
 function total(trip: Preorder) {
-  return trip.total_price ?? (trip.price_per_seat ?? 150) * trip.seats_count;
+  return trip.total_price ?? (trip.price_per_seat ?? FARE_PER_PASSENGER) * trip.seats_count;
 }
 
 function getStatus(trip: Preorder, now: number) {

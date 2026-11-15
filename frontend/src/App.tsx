@@ -11,8 +11,9 @@ import { useDemoAccount } from "./account/useDemoAccount";
 import Header from "./components/Header";
 import AccountPage from "./pages/AccountPage";
 import BookingPage from "./pages/BookingPage";
-import DispatcherPage from "./pages/DispatcherPage";
+import DispatcherAccess from "./pages/DispatcherAccess";
 import HomePage from "./pages/HomePage";
+import PassengerHelpPage from "./pages/PassengerHelpPage";
 import MyTripsPage from "./pages/MyTripsPage";
 import SearchPage from "./pages/SearchPage";
 
@@ -42,12 +43,14 @@ export default function App() {
 
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/help" element={<PassengerHelpPage />} />
+            <Route path="/help/:topic" element={<PassengerHelpPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/booking" element={<BookingRoute />} />
             <Route path="/my-trips" element={<MyTripsPage />} />
             <Route path="/login" element={<AccountPage key="login" />} />
             <Route path="/register" element={<AccountPage key="register" />} />
-            <Route path="/dispatcher" element={<DispatcherPage />} />
+            <Route path="/dispatcher" element={<DispatcherAccess />} />
           </Routes>
         </div>
       </DemoAccountProvider>

@@ -1,24 +1,56 @@
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+
+import { listServiceStops, type ServiceStop } from "../api/trips";
+
+import type { MapPicker, MapPoint } from "./ServiceMap";
 
 type SearchMode = "now" | "scheduled";
 
-export default function SearchForm() {
+
+export default function SearchForm({
+  onPick, onCancelPick,
+}: {
+  onPick: (picker: MapPicker) => void;
+  onCancelPick: () => void;
+}) {
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<SearchMode>("now");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [mapPoints, setMapPoints] = useState<Partial<Record<MapPicker["field"], MapPoint>>>({});
+  const [scheduledStops, setScheduledStops] = useState<ServiceStop[]>();
   const [passengers, setPassengers] = useState(1);
   const [error, setError] = useState("");
 
-  // Меняем остановки отправления и назначения местами
+  const scheduled = mode === "scheduled";
+  const fromValue = mapPoints.from?.label ?? "";
+  const toValue = mapPoints.to?.label ?? "";
+
+  useEffect(() => {
+    if (!scheduled || scheduledStops) return;
+    const controller = new AbortController();
+    listServiceStops(controller.signal, "scheduled").then(
+      (stops) => { if (!controller.signal.aborted) setScheduledStops(stops); },
+      () => { if (!controller.signal.aborted) setScheduledStops([]); },
+    );
+    return () => controller.abort();
+  }, [scheduled, scheduledStops]);
+
+  function chooseOnMap(field: MapPicker["field"], showDirectory = false) {
+    onPick({
+      field,
+      showDirectory,
+      onSelect(point) {
+        setMapPoints((previous) => ({ ...previous, [field]: point }));
+        setError("");
+      },
+    });
+  }
+
   function swapStops() {
-    setFrom(to);
-    setTo(from);
+    onCancelPick();
+    setMapPoints(({ from, to }) => ({ from: to, to: from }));
     setError("");
   }
 
@@ -26,35 +58,51 @@ export default function SearchForm() {
     event.preventDefault();
     setError("");
 
-    if (!from.trim() || !to.trim()) {
-      setError("Выберите остановки отправления и назначения.");
+    if (!fromValue.trim() || !toValue.trim()) {
+      setError("Выберите отправление и назначение на карте.");
       return;
     }
 
-    if (from.trim().toLowerCase() === to.trim().toLowerCase()) {
+    const samePoint = mapPoints.from && mapPoints.to
+      ? mapPoints.from.latitude.toFixed(5) === mapPoints.to.latitude.toFixed(5) &&
+        mapPoints.from.longitude.toFixed(5) === mapPoints.to.longitude.toFixed(5)
+      : fromValue.trim().toLowerCase() === toValue.trim().toLowerCase();
+    if (samePoint) {
       setError("Остановки должны отличаться.");
       return;
     }
 
-    if (!Number.isInteger(passengers) || passengers < 1) {
-      setError("Укажите корректное количество пассажиров.");
+    if (!Number.isInteger(passengers) || passengers < 1 || (scheduled && passengers > 10)) {
+      setError(scheduled ? "Укажите от 1 до 10 пассажиров." : "Укажите корректное количество пассажиров.");
       return;
     }
 
     const params = new URLSearchParams({
       mode,
-      from: from.trim(),
-      to: to.trim(),
+      from: fromValue.trim(),
+      to: toValue.trim(),
       passengers: String(passengers),
     });
 
-    if (mode === "scheduled") {
+    if (scheduled) {
+      if (!scheduledStops) {
+        setError("Подождите, проверяем остановки из расписания.");
+        return;
+      }
+      const fixedStops = [mapPoints.from, mapPoints.to].every((point) =>
+        !point?.isAddress && scheduledStops.some((stop) => stop.id === point?.stopId)
+      );
+      if (!fixedStops) params.set("flex", "1");
+
+      const fields = new FormData(event.currentTarget);
+      const date = String(fields.get("date") ?? "");
+      const time = String(fields.get("time") ?? "");
       if (!date || !time) {
         setError("Укажите дату и время поездки.");
         return;
       }
 
-      const departure = new Date(`${date}T${time}`);
+      const departure = new Date(`${date}T${time}+03:00`);
       const minutesUntil =
         (departure.getTime() - Date.now()) / 60000;
 
@@ -73,13 +121,22 @@ export default function SearchForm() {
         return;
       }
 
-      if (departure.getMinutes() % 10 !== 0) {
+      if (Number(time.slice(3, 5)) % 10 !== 0) {
         setError("Выберите время с шагом 10 минут.");
         return;
       }
 
       params.set("date", date);
       params.set("time", time);
+    }
+
+    for (const field of ["from", "to"] as const) {
+      const point = mapPoints[field];
+      if (!point) continue;
+      params.set(field + "_lat", String(point.latitude));
+      params.set(field + "_lon", String(point.longitude));
+      if (point.isAddress) params.set(field + "_address", "1");
+      if (point.stopId) params.set(field + "_stop_id", String(point.stopId));
     }
 
     navigate(`/search?${params.toString()}`);
@@ -115,6 +172,7 @@ export default function SearchForm() {
           className={mode === "scheduled" ? "selected" : ""}
           aria-pressed={mode === "scheduled"}
           onClick={() => {
+            onCancelPick();
             setMode("scheduled");
             setError("");
           }}
@@ -134,9 +192,10 @@ export default function SearchForm() {
 
               <input
                 type="text"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                placeholder="Остановка отправления"
+                value={fromValue}
+                readOnly
+                onClick={() => chooseOnMap("from")}
+                placeholder="Выберите на карте"
               />
             </span>
           </label>
@@ -163,23 +222,32 @@ export default function SearchForm() {
 
               <input
                 type="text"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                placeholder="Остановка назначения"
+                value={toValue}
+                readOnly
+                onClick={() => chooseOnMap("to")}
+                placeholder="Выберите на карте"
               />
             </span>
           </label>
         </div>
 
-        {mode === "scheduled" && (
+        <div className="route-map-actions">
+          <button type="button" onClick={() => chooseOnMap("from")}>Откуда на карте</button>
+          <button type="button" onClick={() => chooseOnMap("to")}>Куда на карте</button>
+          <button type="button" onClick={() => chooseOnMap(mapPoints.from && !mapPoints.to ? "to" : "from", true)}>Список остановок</button>
+          {(mapPoints.from?.isAddress || mapPoints.to?.isAddress) && (
+            <p className="map-picker__notice" role="status">При выборе адреса возможны незначительные задержки.</p>
+          )}
+        </div>
+
+        {scheduled && (
           <div className="date-time-fields">
             <label className="form-field">
               <span>Дата поездки</span>
 
               <input
                 type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
+                name="date"
               />
             </label>
 
@@ -189,8 +257,7 @@ export default function SearchForm() {
               <input
                 type="time"
                 step={600}
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
+                name="time"
               />
             </label>
           </div>
@@ -202,6 +269,7 @@ export default function SearchForm() {
           <input
             type="number"
             min={1}
+            max={scheduled ? 10 : undefined}
             step={1}
             value={passengers}
             onChange={(e) => setPassengers(Number(e.target.value))}
@@ -211,7 +279,7 @@ export default function SearchForm() {
         <p className="mode-hint">
           {mode === "now"
             ? "Поиск ближайшей доступной поездки."
-            : "Выберите время отправления от 30 минут до 48 часов вперёд."}
+            : "Выберите точки на карте и укажите московское время отправления от 30 минут до 48 часов вперёд."}
         </p>
 
         {error && (
@@ -220,7 +288,11 @@ export default function SearchForm() {
           </p>
         )}
 
-        <button type="submit" className="search-button">
+        <button
+          type="submit"
+          className="search-button"
+
+        >
           {mode === "now"
             ? "Найти поездку сейчас"
             : "Найти поездку на дату"}
@@ -229,9 +301,9 @@ export default function SearchForm() {
         </button>
       </form>
 
-      <p className="prototype-note">
-        Учебный прототип. Поиск автобусов пока не подключён.
-      </p>
+      {!scheduled && (
+        <p className="prototype-note">Режим «Поехать сейчас» работает на демоданных.</p>
+      )}
     </section>
   );
 }

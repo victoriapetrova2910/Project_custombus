@@ -3,10 +3,10 @@ import math
 from pathlib import Path
 from typing import Iterable, Optional, Tuple
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select, union
 from sqlalchemy.orm import Session
 
-from app.models import Stop
+from app.models import Stop, Trip, TripStop
 
 DEFAULT_STOPS_JSON = Path(__file__).resolve().parents[3] / "data" / "stops.json"
 
@@ -114,6 +114,7 @@ def list_stops(
     subzone: Optional[str] = None,
     service_active: Optional[bool] = None,
     is_drt_hub: Optional[bool] = None,
+    scope: Optional[str] = None,
     lat: Optional[float] = None,
     lon: Optional[float] = None,
     radius_m: Optional[float] = None,
@@ -133,6 +134,27 @@ def list_stops(
         conditions.append(Stop.service_active == service_active)
     if is_drt_hub is not None:
         conditions.append(Stop.is_drt_hub == is_drt_hub)
+
+    if scope:
+        scheduled = union(
+            select(TripStop.stop_id).join(Trip).where(Trip.status == "scheduled"),
+            select(Trip.origin_stop_id).where(Trip.status == "scheduled"),
+            select(Trip.destination_stop_id).where(Trip.status == "scheduled"),
+        )
+        in_timetable = Stop.id.in_(scheduled)
+        if scope == "map":
+            # Stops matched to screenshots by name and position on the road.
+            screenshot_stops = {
+                5107803693,  # 14:38:51.60
+                5107806487,  # 14:40:03.06
+                5107806249,  # 14:36:20.59
+                5107803518,  # 14:41:53.37
+                5107797784,  # 14:43:52.14
+                5107798809,  # 14:44:01.59
+            }
+            conditions.append(or_(in_timetable, Stop.id.in_(screenshot_stops)))
+        else:
+            conditions.append(in_timetable)
 
     near = lat is not None and lon is not None
     if near:

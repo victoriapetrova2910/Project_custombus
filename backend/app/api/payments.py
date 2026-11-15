@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.fare import FARE_PER_PASSENGER
 from app.models import Payment, Preorder
 from app.schemas.payment import PaymentCreate, PaymentResponse
 
@@ -24,7 +25,7 @@ def create_payment(
     
     preorder = db.query(Preorder).filter(
         Preorder.id == payment_data.preorder_id
-    ).first()
+    ).with_for_update().first()
 
     if preorder is None:
         raise HTTPException(
@@ -54,7 +55,7 @@ def create_payment(
 
     payment = Payment(
         preorder_id=payment_data.preorder_id,
-        amount=payment_data.amount,
+        amount=FARE_PER_PASSENGER * preorder.seats_count,
         status="pending",
     )
 
@@ -130,6 +131,12 @@ def confirm_payment(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Нельзя подтвердить оплату отменённого бронирования",
+        )
+
+    if preorder.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Для бронирования уже завершена оплата",
         )
 
     payment.status = "paid"

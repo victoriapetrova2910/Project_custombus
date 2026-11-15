@@ -7,6 +7,7 @@ export type SearchState =
 
 type SearchStatusProps = {
   state: SearchState;
+  description?: string;
 };
 
 const messages = {
@@ -38,6 +39,7 @@ const messages = {
 
 export default function SearchStatus({
   state,
+  description,
 }: SearchStatusProps) {
   const message = messages[state];
 
@@ -60,7 +62,7 @@ export default function SearchStatus({
 
       <div className="search-status__content">
         <h2>{message.title}</h2>
-        <p>{message.description}</p>
+        <p>{description ?? message.description}</p>
       </div>
     </section>
   );

@@ -1,8 +1,11 @@
+from pathlib import Path
 
-from app.database import Base, engine
-from app.models import Preorder, Payment, Trip
+from alembic import command
+from alembic.config import Config
 
-Base.metadata.create_all(bind=engine)
 
-print("Таблицы созданы успешно!")
-print("Таблицы:", list(Base.metadata.tables.keys()))
+if __name__ == "__main__":
+    backend = Path(__file__).resolve().parent
+    config = Config(str(backend / "alembic.ini"))
+    config.set_main_option("script_location", str(backend / "migrations"))
+    command.upgrade(config, "head")

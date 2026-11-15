@@ -1,3 +1,4 @@
+import { FARE_PER_PASSENGER } from "../fare";
 import type { Preorder, PreorderCreate } from "../api/preorders";
 
 const hour = 60 * 60 * 1000;
@@ -38,8 +39,8 @@ function seedOrders(userId: number): Preorder[] {
     status,
     created_at: new Date(time - 3 * hour).toISOString(),
     paid_at: new Date(time - 3 * hour).toISOString(),
-    price_per_seat: 150,
-    total_price: 150 * seats,
+    price_per_seat: FARE_PER_PASSENGER,
+    total_price: FARE_PER_PASSENGER * seats,
   }));
 }
 
@@ -61,7 +62,7 @@ function writeOrders(userId: number, orders: Preorder[]) {
 
 export function createDemoOrder(data: PreorderCreate): Preorder {
   const orders = readDemoOrders(data.user_id);
-  const price = data.price_per_seat ?? 150;
+  const price = data.price_per_seat ?? FARE_PER_PASSENGER;
 
   const order: Preorder = {
     id: Math.max(102, ...orders.map((item) => item.id)) + 1,

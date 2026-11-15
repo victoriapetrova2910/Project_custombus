@@ -32,6 +32,11 @@ class TripCreate(BaseModel):
     @model_validator(mode="after")
     def _check(self):
         if self.stops:
+            for stop in self.stops:
+                if stop.arrival_time.utcoffset() is not None or (
+                    stop.departure_time is not None and stop.departure_time.utcoffset() is not None
+                ):
+                    raise ValueError("Укажите местное время остановок без часового пояса")
             if len(self.stops) < 2:
                 raise ValueError("В рейсе должно быть минимум 2 остановки")
             if self.vehicle_id is None and self.total_seats is None:
@@ -80,7 +85,7 @@ class TripStopResponse(BaseModel):
 
 class TripDetailResponse(TripResponse):
     total_fare: Optional[Decimal] = None
-    stops: List[TripStopResponse] = []
+    stops: List[TripStopResponse] = Field(default_factory=list)
 
 
 class TripSearchRequest(BaseModel):
@@ -95,6 +100,8 @@ class TripSearchRequest(BaseModel):
 
     @model_validator(mode="after")
     def _different_stops(self):
+        if self.time.tzinfo is not None:
+            raise ValueError("Укажите местное время посадки без часового пояса")
         if self.from_stop_id == self.to_stop_id:
             raise ValueError("Остановки отправления и назначения совпадают")
         return self

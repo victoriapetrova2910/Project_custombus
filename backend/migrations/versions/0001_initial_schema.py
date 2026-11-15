@@ -66,7 +66,7 @@ def upgrade() -> None:
             ),
         )
 
-    
+    if not _has("trips"):
         op.create_table(
             "trips",
             sa.Column("id", sa.Integer(), primary_key=True),
