@@ -31,3 +31,7 @@ export function isWithinCoverage(longitude: number, latitude: number) {
     );
   });
 }
+
+export function isPointWithinCoverage(point: { longitude: number; latitude: number }) {
+  return isWithinCoverage(point.longitude, point.latitude);
+}

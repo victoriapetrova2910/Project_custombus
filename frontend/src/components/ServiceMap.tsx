@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import type { FeatureCollection, LineString, Point } from "geojson";
 import { LngLat, LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, Popup, setWorkerUrl, type ExpressionSpecification, type GeoJSONSource, type MapMouseEvent } from "maplibre-gl";
 
-import { coverage, isWithinCoverage } from "../mapCoverage";
+import { coverage, isPointWithinCoverage, isWithinCoverage } from "../mapCoverage";
 import { lookupMapAddress } from "../api/mapAddress";
 import { getTripRoute, listMapStops, listServiceStops, type ServiceStop, type StopShort, type TripRoute } from "../api/trips";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
@@ -11,8 +11,8 @@ import StopDirectory from "./StopDirectory";
 
 setWorkerUrl(workerUrl);
 
-const DETAIL_ZOOM = 14;
-const NEARBY_STOP_RADIUS_METERS = 1000;
+const DETAIL_ZOOM = 12.5;
+const NEARBY_STOP_RADIUS_METERS = 2000;
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/bright";
 const AREAS = {
   nao: { label: "ТиНАО", color: "#087a59", center: [37.414, 55.527], zoom: 10.9 },
@@ -28,7 +28,6 @@ export type MapPoint = {
 };
 export type MapPicker = {
   field: "from" | "to";
-  showDirectory?: boolean;
   onSelect: (point: MapPoint) => void;
 };
 
@@ -147,7 +146,10 @@ function routeFeatures(stops: StopShort[]): FeatureCollection<LineString | Point
           ...point.properties,
           role: index === 0 ? "start" : index === points.length - 1 ? "end" : "middle",
         },
-      })),
+      })).filter((point) => {
+        const [longitude, latitude] = point.geometry.coordinates;
+        return isWithinCoverage(longitude, latitude);
+      }),
     ],
   };
 }
@@ -224,6 +226,10 @@ export default function ServiceMap({
     const map = new MapLibreMap({
       container: containerRef.current, style: MAP_STYLE,
       center: AREAS.nao.center, zoom: AREAS.nao.zoom,
+      locale: {
+        "NavigationControl.ZoomIn": "Приблизить",
+        "NavigationControl.ZoomOut": "Отдалить",
+      },
     });
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     mapRef.current = map;
@@ -258,7 +264,7 @@ export default function ServiceMap({
   useEffect(() => {
     const controller = new AbortController();
     listMapStops(controller.signal).then(
-      (items) => { if (!controller.signal.aborted) setStops(items); },
+      (items) => { if (!controller.signal.aborted) setStops(items.filter(isPointWithinCoverage)); },
       () => { if (!controller.signal.aborted) setStopsError(true); },
     );
     return () => controller.abort();
@@ -273,7 +279,7 @@ export default function ServiceMap({
     listServiceStops(controller.signal).then(
       (items) => {
         if (controller.signal.aborted) return;
-        setCatalog(items);
+        setCatalog(items.filter(isPointWithinCoverage));
         setCatalogLoaded(true);
         setCatalogError(false);
       },
@@ -282,16 +288,7 @@ export default function ServiceMap({
     return () => controller.abort();
   }, [showNearbyStops, picker, catalogLoaded]);
 
-  const selectStop = useEffectEvent((map: MapLibreMap, stop: StopShort, popup: Popup, selectable: boolean) => {
-    if (!selectable) {
-      if (picker) {
-        addressRequest.current?.abort();
-        setDraft({ picker, error: "Эта остановка справочная. Выберите зелёную метку или адрес в зоне сервиса." });
-        return;
-      }
-      popup.setLngLat(coordinate(stop)).setText(stop.name + " · справочная остановка").addTo(map);
-      return;
-    }
+  const selectStop = useEffectEvent((map: MapLibreMap, stop: StopShort, popup: Popup) => {
     if (!picker) {
       popup.setLngLat(coordinate(stop)).setText(stop.name).addTo(map);
       return;
@@ -300,6 +297,10 @@ export default function ServiceMap({
     popup.remove();
     addressRequest.current?.abort();
     const { id: stopId, name: label, latitude, longitude } = stop;
+    if (!isWithinCoverage(longitude, latitude)) {
+      setDraft({ picker, error: "Эта остановка вне зоны обслуживания." });
+      return;
+    }
     setDraft({ picker, point: { stopId, label, latitude, longitude, isAddress: false } });
   });
 
@@ -310,15 +311,15 @@ export default function ServiceMap({
 
     const shownStops = [...stops, ...nearbyStops];
     const markers = shownStops.map((stop) => {
-      const selectable = serviceStopIds.has(stop.id);
+      const primary = serviceStopIds.has(stop.id);
       const button = document.createElement("button");
       button.type = "button";
-      button.className = selectable ? "service-stop-marker" : "service-stop-marker service-stop-marker--reference";
-      button.setAttribute("aria-label", (selectable ? "Остановка " : "Справочная остановка ") + stop.name);
+      button.className = primary ? "service-stop-marker" : "service-stop-marker service-stop-marker--reference";
+      button.setAttribute("aria-label", "Остановка " + stop.name);
       button.title = stop.name;
       button.addEventListener("click", (event) => {
         event.stopPropagation();
-        selectStop(map, stop, popup, selectable);
+        selectStop(map, stop, popup);
       });
 
       return new Marker({ element: button }).setLngLat(coordinate(stop)).addTo(map);
@@ -406,19 +407,16 @@ export default function ServiceMap({
     if (!picker || !map) return;
     addressRequest.current?.abort();
     map.easeTo({ center: coordinate(point), zoom: Math.max(16, map.getZoom()), duration: 450 });
-    if (stopId && serviceStopIds.has(stopId)) {
-      setDraft({ picker, point: { ...point, stopId, isAddress: false } });
-    } else if (isWithinCoverage(point.longitude, point.latitude)) {
-      setDraft({ picker, point: { ...point, isAddress: true } });
-    } else {
+    if (!isPointWithinCoverage(point)) {
       setDraft({ picker, error: "Здесь сервис не работает. Выберите точку в выделенной зоне." });
+      return;
     }
+    setDraft({ picker, point: { ...point, stopId, isAddress: stopId === undefined } });
   }
 
   function confirmPoint() {
     if (!picker || !pickedPoint || !pickedPoint.label.trim()) return;
-    if (pickedPoint.isAddress && !isWithinCoverage(pickedPoint.longitude, pickedPoint.latitude)) return;
-    if (!pickedPoint.isAddress && !serviceStopIds.has(pickedPoint.stopId ?? 0)) return;
+    if (!isPointWithinCoverage(pickedPoint)) return;
     picker.onSelect({ ...pickedPoint, label: pickedPoint.label.trim() });
   }
 
@@ -457,7 +455,6 @@ export default function ServiceMap({
           {ready && (
             <StopDirectory
               key={picker.field}
-              openInitially={picker.showDirectory}
               stops={catalog}
               loaded={catalogLoaded}
               failed={catalogError}
@@ -499,7 +496,7 @@ export default function ServiceMap({
         <span><i className="map-label__dot" />{stopsError ? "Остановки недоступны" : "Остановки «По пути»"}</span>
         {!route && (
           <span>{showNearbyStops
-            ? catalogError ? "Не удалось загрузить справочные остановки" : "Серые метки · до 1 км от центра карты"
+            ? catalogError ? "Не удалось загрузить ближайшие остановки" : "Голубые метки · до 2 км от центра карты"
             : "Приблизьте карту, чтобы увидеть другие остановки"}</span>
         )}
         {route && (

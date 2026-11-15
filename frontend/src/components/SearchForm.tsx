@@ -4,10 +4,22 @@ import { useNavigate } from "react-router-dom";
 
 import { listServiceStops, type ServiceStop } from "../api/trips";
 
+import AddressInput from "./AddressInput";
 import type { MapPicker, MapPoint } from "./ServiceMap";
 
 type SearchMode = "now" | "scheduled";
 
+
+function MapPickButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" className="route-map-icon" aria-label={label} title={label} onClick={onClick}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M19 10c0 5-7 10-7 10s-7-5-7-10a7 7 0 1 1 14 0Z" />
+        <circle cx="12" cy="10" r="2.5" />
+      </svg>
+    </button>
+  );
+}
 
 export default function SearchForm({
   onPick, onCancelPick,
@@ -19,13 +31,24 @@ export default function SearchForm({
 
   const [mode, setMode] = useState<SearchMode>("now");
   const [mapPoints, setMapPoints] = useState<Partial<Record<MapPicker["field"], MapPoint>>>({});
+  const [addressText, setAddressText] = useState({ from: "", to: "" });
+  const [addressStops, setAddressStops] = useState<ServiceStop[]>([]);
   const [scheduledStops, setScheduledStops] = useState<ServiceStop[]>();
   const [passengers, setPassengers] = useState(1);
   const [error, setError] = useState("");
 
   const scheduled = mode === "scheduled";
-  const fromValue = mapPoints.from?.label ?? "";
-  const toValue = mapPoints.to?.label ?? "";
+  const fromValue = mapPoints.from?.label ?? addressText.from;
+  const toValue = mapPoints.to?.label ?? addressText.to;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    listServiceStops(controller.signal).then(
+      (stops) => { if (!controller.signal.aborted) setAddressStops(stops); },
+      () => undefined,
+    );
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     if (!scheduled || scheduledStops) return;
@@ -37,20 +60,29 @@ export default function SearchForm({
     return () => controller.abort();
   }, [scheduled, scheduledStops]);
 
-  function chooseOnMap(field: MapPicker["field"], showDirectory = false) {
+  function selectPoint(field: MapPicker["field"], point: MapPoint) {
+    setMapPoints((previous) => ({ ...previous, [field]: point }));
+    setAddressText((previous) => ({ ...previous, [field]: point.label }));
+    setError("");
+  }
+
+  function editAddress(field: MapPicker["field"], value: string) {
+    setAddressText((previous) => ({ ...previous, [field]: value }));
+    setMapPoints((previous) => ({ ...previous, [field]: undefined }));
+    setError("");
+  }
+
+  function chooseOnMap(field: MapPicker["field"]) {
     onPick({
       field,
-      showDirectory,
-      onSelect(point) {
-        setMapPoints((previous) => ({ ...previous, [field]: point }));
-        setError("");
-      },
+      onSelect: (point) => selectPoint(field, point),
     });
   }
 
   function swapStops() {
     onCancelPick();
     setMapPoints(({ from, to }) => ({ from: to, to: from }));
+    setAddressText(({ from, to }) => ({ from: to, to: from }));
     setError("");
   }
 
@@ -58,15 +90,13 @@ export default function SearchForm({
     event.preventDefault();
     setError("");
 
-    if (!fromValue.trim() || !toValue.trim()) {
-      setError("Выберите отправление и назначение на карте.");
+    if (!mapPoints.from || !mapPoints.to) {
+      setError("Выберите оба адреса из подсказок или укажите точки на карте.");
       return;
     }
 
-    const samePoint = mapPoints.from && mapPoints.to
-      ? mapPoints.from.latitude.toFixed(5) === mapPoints.to.latitude.toFixed(5) &&
-        mapPoints.from.longitude.toFixed(5) === mapPoints.to.longitude.toFixed(5)
-      : fromValue.trim().toLowerCase() === toValue.trim().toLowerCase();
+    const samePoint = mapPoints.from.latitude.toFixed(5) === mapPoints.to.latitude.toFixed(5) &&
+      mapPoints.from.longitude.toFixed(5) === mapPoints.to.longitude.toFixed(5);
     if (samePoint) {
       setError("Остановки должны отличаться.");
       return;
@@ -184,21 +214,18 @@ export default function SearchForm({
       <form className="booking-form" onSubmit={handleSubmit}>
         <div className="route-inputs">
           {/* Остановка отправления */}
-          <label className="route-input">
+          <div className="route-input">
             <span className="route-dot route-dot--start" />
-
-            <span className="field-content">
-              <span className="field-label">Откуда</span>
-
-              <input
-                type="text"
-                value={fromValue}
-                readOnly
-                onClick={() => chooseOnMap("from")}
-                placeholder="Выберите на карте"
-              />
-            </span>
-          </label>
+            <AddressInput
+              label="Откуда"
+              value={fromValue}
+              stops={addressStops}
+              selected={Boolean(mapPoints.from)}
+              onEdit={(value) => editAddress("from", value)}
+              onSelect={(point) => selectPoint("from", point)}
+            />
+            <MapPickButton label="Выбрать точку отправления на карте" onClick={() => chooseOnMap("from")} />
+          </div>
 
           <div className="route-divider" />
 
@@ -214,31 +241,23 @@ export default function SearchForm({
           </button>
 
           {/* Остановка назначения */}
-          <label className="route-input">
+          <div className="route-input">
             <span className="route-dot route-dot--finish" />
-
-            <span className="field-content">
-              <span className="field-label">Куда</span>
-
-              <input
-                type="text"
-                value={toValue}
-                readOnly
-                onClick={() => chooseOnMap("to")}
-                placeholder="Выберите на карте"
-              />
-            </span>
-          </label>
+            <AddressInput
+              label="Куда"
+              value={toValue}
+              stops={addressStops}
+              selected={Boolean(mapPoints.to)}
+              onEdit={(value) => editAddress("to", value)}
+              onSelect={(point) => selectPoint("to", point)}
+            />
+            <MapPickButton label="Выбрать точку назначения на карте" onClick={() => chooseOnMap("to")} />
+          </div>
         </div>
 
-        <div className="route-map-actions">
-          <button type="button" onClick={() => chooseOnMap("from")}>Откуда на карте</button>
-          <button type="button" onClick={() => chooseOnMap("to")}>Куда на карте</button>
-          <button type="button" onClick={() => chooseOnMap(mapPoints.from && !mapPoints.to ? "to" : "from", true)}>Список остановок</button>
-          {(mapPoints.from?.isAddress || mapPoints.to?.isAddress) && (
-            <p className="map-picker__notice" role="status">При выборе адреса возможны незначительные задержки.</p>
-          )}
-        </div>
+        {(mapPoints.from?.isAddress || mapPoints.to?.isAddress) && (
+          <p className="map-picker__notice" role="status">При выборе адреса возможны незначительные задержки.</p>
+        )}
 
         {scheduled && (
           <div className="date-time-fields">
