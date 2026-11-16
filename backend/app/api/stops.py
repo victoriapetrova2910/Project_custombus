@@ -13,6 +13,7 @@ router = APIRouter(prefix="/api/v1/stops", tags=["Остановки"])
 @router.get("", response_model=StopListResponse)
 def list_stops(
     q: Optional[str] = Query(None, description="Поиск по части названия"),
+    catalog_query: bool = Query(False, description="Искать также по коду остановки и округу"),
     zone: Optional[str] = Query(None, description="Округ: НАО, ТАО, Сколково"),
     subzone: Optional[str] = Query(None, description="Часть названия подзоны"),
     service_active: Optional[bool] = Query(
@@ -43,6 +44,7 @@ def list_stops(
     total, items = stops_service.list_stops(
         db,
         q=q,
+        catalog_query=catalog_query,
         zone=zone,
         subzone=subzone,
         service_active=service_active,

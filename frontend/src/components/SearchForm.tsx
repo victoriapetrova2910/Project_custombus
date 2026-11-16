@@ -2,12 +2,18 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { listServiceStops, type ServiceStop } from "../api/trips";
+import { listServiceStops, type ServiceStop } from "../api/stops";
 
-import AddressInput from "./AddressInput";
+import StopSelect from "./StopSelect";
 import type { MapPicker, MapPoint } from "./ServiceMap";
 
 type SearchMode = "now" | "scheduled";
+
+function isSamePoint(left: MapPoint, right: MapPoint) {
+  return (left.stopId !== undefined && left.stopId === right.stopId) ||
+    (left.latitude.toFixed(5) === right.latitude.toFixed(5) &&
+      left.longitude.toFixed(5) === right.longitude.toFixed(5));
+}
 
 
 function MapPickButton({ label, onClick }: { label: string; onClick: () => void }) {
@@ -32,7 +38,10 @@ export default function SearchForm({
   const [mode, setMode] = useState<SearchMode>("now");
   const [mapPoints, setMapPoints] = useState<Partial<Record<MapPicker["field"], MapPoint>>>({});
   const [addressText, setAddressText] = useState({ from: "", to: "" });
-  const [addressStops, setAddressStops] = useState<ServiceStop[]>([]);
+  const [addressStops, setAddressStops] = useState<ServiceStop[]>();
+  const [addressStopsFailed, setAddressStopsFailed] = useState(false);
+  const [scheduledStopsFailed, setScheduledStopsFailed] = useState(false);
+  const [stopAttempt, setStopAttempt] = useState(0);
   const [scheduledStops, setScheduledStops] = useState<ServiceStop[]>();
   const [passengers, setPassengers] = useState(1);
   const [error, setError] = useState("");
@@ -42,25 +51,38 @@ export default function SearchForm({
   const toValue = mapPoints.to?.label ?? addressText.to;
 
   useEffect(() => {
+    if (addressStops) return;
     const controller = new AbortController();
     listServiceStops(controller.signal).then(
       (stops) => { if (!controller.signal.aborted) setAddressStops(stops); },
-      () => undefined,
+      () => { if (!controller.signal.aborted) setAddressStopsFailed(true); },
     );
     return () => controller.abort();
-  }, []);
+  }, [addressStops, stopAttempt]);
 
   useEffect(() => {
     if (!scheduled || scheduledStops) return;
     const controller = new AbortController();
     listServiceStops(controller.signal, "scheduled").then(
       (stops) => { if (!controller.signal.aborted) setScheduledStops(stops); },
-      () => { if (!controller.signal.aborted) setScheduledStops([]); },
+      () => { if (!controller.signal.aborted) setScheduledStopsFailed(true); },
     );
     return () => controller.abort();
-  }, [scheduled, scheduledStops]);
+  }, [scheduled, scheduledStops, stopAttempt]);
+
+  function retryStops() {
+    setAddressStopsFailed(false);
+    setScheduledStopsFailed(false);
+    setError("");
+    setStopAttempt((attempt) => attempt + 1);
+  }
 
   function selectPoint(field: MapPicker["field"], point: MapPoint) {
+    const other = mapPoints[field === "from" ? "to" : "from"];
+    if (other && isSamePoint(point, other)) {
+      setError("Остановки должны отличаться.");
+      return;
+    }
     setMapPoints((previous) => ({ ...previous, [field]: point }));
     setAddressText((previous) => ({ ...previous, [field]: point.label }));
     setError("");
@@ -95,9 +117,7 @@ export default function SearchForm({
       return;
     }
 
-    const samePoint = mapPoints.from.latitude.toFixed(5) === mapPoints.to.latitude.toFixed(5) &&
-      mapPoints.from.longitude.toFixed(5) === mapPoints.to.longitude.toFixed(5);
-    if (samePoint) {
+    if (isSamePoint(mapPoints.from, mapPoints.to)) {
       setError("Остановки должны отличаться.");
       return;
     }
@@ -116,7 +136,9 @@ export default function SearchForm({
 
     if (scheduled) {
       if (!scheduledStops) {
-        setError("Подождите, проверяем остановки из расписания.");
+        setError(scheduledStopsFailed
+          ? "Не удалось проверить остановки из расписания. Повторите загрузку."
+          : "Подождите, проверяем остановки из расписания.");
         return;
       }
       const fixedStops = [mapPoints.from, mapPoints.to].every((point) =>
@@ -216,10 +238,10 @@ export default function SearchForm({
           {/* Остановка отправления */}
           <div className="route-input">
             <span className="route-dot route-dot--start" />
-            <AddressInput
+            <StopSelect
               label="Откуда"
               value={fromValue}
-              stops={addressStops}
+              stops={addressStops ?? []}
               selected={Boolean(mapPoints.from)}
               onEdit={(value) => editAddress("from", value)}
               onSelect={(point) => selectPoint("from", point)}
@@ -243,10 +265,10 @@ export default function SearchForm({
           {/* Остановка назначения */}
           <div className="route-input">
             <span className="route-dot route-dot--finish" />
-            <AddressInput
+            <StopSelect
               label="Куда"
               value={toValue}
-              stops={addressStops}
+              stops={addressStops ?? []}
               selected={Boolean(mapPoints.to)}
               onEdit={(value) => editAddress("to", value)}
               onSelect={(point) => selectPoint("to", point)}
@@ -254,6 +276,15 @@ export default function SearchForm({
             <MapPickButton label="Выбрать точку назначения на карте" onClick={() => chooseOnMap("to")} />
           </div>
         </div>
+
+        {(addressStopsFailed || (scheduled && scheduledStopsFailed)) ? (
+          <div className="stop-load-status" role="alert">
+            {addressStopsFailed ? "Не удалось загрузить справочник остановок." : "Не удалось загрузить остановки из расписания."}
+            <button type="button" onClick={retryStops}>Повторить</button>
+          </div>
+        ) : (!addressStops || (scheduled && !scheduledStops)) && (
+          <p className="stop-load-status" role="status">Загружаем остановки…</p>
+        )}
 
         {(mapPoints.from?.isAddress || mapPoints.to?.isAddress) && (
           <p className="map-picker__notice" role="status">При выборе адреса возможны незначительные задержки.</p>

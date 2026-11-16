@@ -1,13 +1,13 @@
 import { useEffect, useId, useState } from "react";
 import { findMapAddress } from "../api/mapAddress";
 import { isWithinCoverage } from "../mapCoverage";
-import type { ServiceStop } from "../api/trips";
+import type { ServiceStop } from "../api/stops";
 import type { MapPoint } from "./ServiceMap";
 
 type Match = Omit<MapPoint, "isAddress" | "stopId">;
 type Lookup = { query: string; items: Match[]; error?: string };
 
-export default function AddressInput({ label, value, selected, stops, onEdit, onSelect }: {
+export default function StopSelect({ label, value, selected, stops, onEdit, onSelect }: {
   label: string;
   value: string;
   selected: boolean;
@@ -74,7 +74,7 @@ export default function AddressInput({ label, value, selected, stops, onEdit, on
         aria-controls={matches.length > 0 ? id + "-suggestions" : undefined}
         aria-activedescendant={matches[highlight] ? id + "-" + highlight : undefined}
         value={value}
-        placeholder="Введите адрес"
+        placeholder="Введите остановку или адрес"
         onFocus={() => setOpen(true)}
         onBlur={() => { setOpen(false); setHighlight(-1); }}
         onChange={(event) => {
