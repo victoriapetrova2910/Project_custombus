@@ -205,7 +205,7 @@ paths:
     get:
       x-status: planned
       tags: [Рейсы]
-      summary: Список остановок (план, см. задание 1)
+      summary: Список остановок
       responses:
         '200': { description: Остановки }
 
