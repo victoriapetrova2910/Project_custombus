@@ -2,9 +2,10 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import type { FeatureCollection, LineString, Point } from "geojson";
 import { LngLat, LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, Popup, setWorkerUrl, type ExpressionSpecification, type GeoJSONSource, type MapMouseEvent } from "maplibre-gl";
 
-import { coverage, isPointWithinCoverage, isWithinCoverage } from "../mapCoverage";
+import { coverage, isPointWithinCoverage, isWithinCoverage, referenceAreas } from "../mapCoverage";
 import { lookupMapAddress } from "../api/mapAddress";
-import { getTripRoute, listMapStops, listServiceStops, type ServiceStop, type StopShort, type TripRoute } from "../api/trips";
+import { listServiceStops, type ServiceStop, type StopShort } from "../api/stops";
+import { getTripRoute, type TripRoute } from "../api/trips";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import StopDirectory from "./StopDirectory";
@@ -52,6 +53,12 @@ const zones: FeatureCollection = {
     properties: { color: AREAS[id].color },
   })),
 };
+const referenceZones: FeatureCollection = {
+  type: "FeatureCollection",
+  features: referenceAreas.map(({ geometry }) => ({
+    type: "Feature", geometry, properties: {},
+  })),
+};
 const empty: FeatureCollection = { type: "FeatureCollection", features: [] };
 
 function fitArea(map: MapLibreMap, id: AreaId, duration: number) {
@@ -91,6 +98,16 @@ function addMapLayers(map: MapLibreMap) {
       map.setFilter(layer.id, current ? ["all", current, ["!", transit]] : ["!", transit]);
     }
   }
+
+  map.addSource("reference-areas", { type: "geojson", data: referenceZones });
+  map.addLayer({
+    id: "reference-area-fill", type: "fill", source: "reference-areas",
+    paint: { "fill-color": "#64748b", "fill-opacity": 0.10 },
+  });
+  map.addLayer({
+    id: "reference-area-outline", type: "line", source: "reference-areas",
+    paint: { "line-color": "#64748b", "line-width": 1.5, "line-dasharray": [2, 2] },
+  });
 
   map.addSource("areas", { type: "geojson", data: zones });
   map.addLayer({
@@ -263,7 +280,7 @@ export default function ServiceMap({
 
   useEffect(() => {
     const controller = new AbortController();
-    listMapStops(controller.signal).then(
+    listServiceStops(controller.signal, "map").then(
       (items) => { if (!controller.signal.aborted) setStops(items.filter(isPointWithinCoverage)); },
       () => { if (!controller.signal.aborted) setStopsError(true); },
     );
@@ -274,7 +291,7 @@ export default function ServiceMap({
   const [catalogError, setCatalogError] = useState(false);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   useEffect(() => {
-    if ((!showNearbyStops && !picker) || catalogLoaded) return;
+    if (!showNearbyStops || catalogLoaded) return;
     const controller = new AbortController();
     listServiceStops(controller.signal).then(
       (items) => {
@@ -286,7 +303,7 @@ export default function ServiceMap({
       () => { if (!controller.signal.aborted) setCatalogError(true); },
     );
     return () => controller.abort();
-  }, [showNearbyStops, picker, catalogLoaded]);
+  }, [showNearbyStops, catalogLoaded]);
 
   const selectStop = useEffectEvent((map: MapLibreMap, stop: StopShort, popup: Popup) => {
     if (!picker) {
@@ -442,6 +459,12 @@ export default function ServiceMap({
             {AREAS[id].label}
           </button>
         ))}
+        {!picker && !journey && !route && (
+          <div className="map-area-legend" aria-label="Границы на карте">
+            <span><i /> Проектная зона обслуживания</span>
+            <span><i /> Справочная территория вне цветного контура</span>
+          </div>
+        )}
       </div>
       {picker && (
         <div className="map-picker" aria-label="Выбор точки на карте">
@@ -455,9 +478,6 @@ export default function ServiceMap({
           {ready && (
             <StopDirectory
               key={picker.field}
-              stops={catalog}
-              loaded={catalogLoaded}
-              failed={catalogError}
               center={{ latitude: view?.center.lat ?? AREAS[area].center[1], longitude: view?.center.lng ?? AREAS[area].center[0] }}
               onLocate={focusDirectoryPoint}
             />

@@ -1,13 +1,6 @@
+import type { StopShort } from "./stops";
 
 /** API поиска запланированных поездок. */
-
-// Остановка, полученная от сервера
-export type StopShort = {
-  id: number;
-  name: string;
-  latitude: number;
-  longitude: number;
-};
 
 // Параметры поиска предзаказа
 export type TripSearchRequest = {
@@ -48,36 +41,6 @@ const API_BASE_URL =
 
 // Путь поиска предзаказов
 const SEARCH_PATH = "/api/v1/preorders/search";
-
-export type ServiceStop = StopShort & { stop_code: string | null; zone: string | null };
-
-export async function listServiceStops(
-  signal: AbortSignal,
-  scope: "all" | "scheduled" | "map" = "all",
-): Promise<ServiceStop[]> {
-  const stops: ServiceStop[] = [];
-  const pageSize = 500;
-
-  for (let offset = 0; ; offset += pageSize) {
-    const params = new URLSearchParams({
-      service_active: "true",
-      limit: String(pageSize),
-      offset: String(offset),
-    });
-    if (scope !== "all") params.set("scope", scope);
-    const response = await fetch(`${API_BASE_URL}/api/v1/stops?${params}`, { signal });
-    if (!response.ok) {
-      throw new Error(`Не удалось загрузить остановки (HTTP ${response.status}).`);
-    }
-
-    const page = (await response.json()) as { total: number; items: ServiceStop[] };
-    stops.push(...page.items);
-    if (stops.length >= page.total || page.items.length === 0) return stops;
-  }
-}
-export function listMapStops(signal: AbortSignal) {
-  return listServiceStops(signal, "map");
-}
 
 export async function searchScheduledTrips(
   params: TripSearchRequest,

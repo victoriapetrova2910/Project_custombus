@@ -4,7 +4,8 @@ import boundariesJson from "../../data/zones_boundaries.json?raw";
 import tinaoJson from "../../data/tinao_service_boundary.json?raw";
 
 type Boundary = { geometry: Polygon | MultiPolygon };
-const boundaries = JSON.parse(boundariesJson) as { skolkovo: Boundary };
+const boundaries = JSON.parse(boundariesJson) as Record<"nao" | "tao" | "skolkovo", Boundary>;
+export const referenceAreas = [boundaries.nao, boundaries.tao];
 export const coverage = {
   nao: JSON.parse(tinaoJson) as Boundary,
   skolkovo: boundaries.skolkovo,

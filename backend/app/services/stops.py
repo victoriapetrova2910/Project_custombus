@@ -120,12 +120,20 @@ def list_stops(
     radius_m: Optional[float] = None,
     limit: int = 50,
     offset: int = 0,
+    catalog_query: bool = False,
 ):
     conditions = []
 
     if q:
         pattern = "%" + q.strip().replace("%", r"\%").replace("_", r"\_") + "%"
-        conditions.append(Stop.name.ilike(pattern, escape="\\"))
+        name_matches = Stop.name.ilike(pattern, escape="\\")
+        if catalog_query:
+            name_matches = or_(
+                name_matches,
+                Stop.stop_code.ilike(pattern, escape="\\"),
+                Stop.zone.ilike(pattern, escape="\\"),
+            )
+        conditions.append(name_matches)
     if zone:
         conditions.append(Stop.zone == zone)
     if subzone:
